@@ -12,7 +12,6 @@ const { waitForPageReady } = require('./common');
 async function checkForApplyButton(page) {
   await page.waitForTimeout(2000);
   
-  // Wait for ASBA page to load
   try {
     await waitForPageReady(page, [
       'body',
@@ -21,24 +20,20 @@ async function checkForApplyButton(page) {
       '[class*="asba" i]'
     ], 10000);
   } catch (e) {
-    console.log('Page not fully loaded, continuing...');
+    // Page not fully loaded, continuing
   }
   
-  // First, check for "No Record(s) Found" - this means no IPO available
   try {
     const pageContent = await page.textContent('body');
     if (pageContent) {
-      // Check for "No Record(s) Found" text (case insensitive)
       if (/No Record/i.test(pageContent)) {
-        console.log('Found "No Record(s) Found" on page - no IPO available');
         return { found: false, reason: 'No Record(s) Found' };
       }
     }
   } catch (e) {
-    console.log('Could not check page content for "No Record"');
+    // Could not check page content for "No Record"
   }
   
-  // Also check with selectors
   try {
     const noRecordSelectors = [
       '*:has-text("No Record")',
@@ -50,8 +45,6 @@ async function checkForApplyButton(page) {
       try {
         const element = page.locator(selector).first();
         if (await element.isVisible({ timeout: 2000 })) {
-          const text = await element.textContent();
-          console.log(`Found "No Record" indicator: ${text}`);
           return { found: false, reason: 'No Record(s) Found' };
         }
       } catch (e) {
@@ -62,7 +55,6 @@ async function checkForApplyButton(page) {
     // Continue to check for Apply button
   }
   
-  // Multiple selectors to find Apply button/text
   const applySelectors = [
     'button:has-text("Apply")',
     'a:has-text("Apply")',
@@ -81,12 +73,9 @@ async function checkForApplyButton(page) {
       const element = page.locator(selector).first();
       if (await element.isVisible({ timeout: 3000 })) {
         const text = await element.textContent();
-        // Make sure it's not just the tab text "Apply for Issue" - it should be a clickable button/link
         if (text && (text.includes('Apply for Issue') || text.trim() === 'Apply' || text.includes('Apply'))) {
-          // Check if it's actually clickable (not just a tab)
           const tagName = await element.evaluate(el => el.tagName.toLowerCase());
           if (tagName === 'button' || tagName === 'a' || await element.getAttribute('onclick')) {
-            console.log(`Found Apply button with selector: ${selector}, text: ${text}`);
             return {
               found: true,
               element: element,
@@ -101,7 +90,6 @@ async function checkForApplyButton(page) {
     }
   }
   
-  console.log('No Apply button found on the page');
   return { found: false };
 }
 
@@ -123,8 +111,6 @@ async function getIPODetails(page) {
   };
   
   try {
-    // Try to extract IPO information from table or page
-    // Adjust selectors based on actual page structure
     const tableRows = await page.locator('table tr, .table tr').all();
     
     for (let i = 0; i < Math.min(tableRows.length, 10); i++) {
@@ -132,20 +118,18 @@ async function getIPODetails(page) {
       const rowText = await row.textContent();
       
       if (rowText) {
-        // Extract IPO name
         if (!details.name && /ipo|issue|company/i.test(rowText)) {
           details.name = rowText.trim().substring(0, 100);
         }
       }
     }
     
-    // Try to get text from page
     const pageText = await page.textContent('body');
     if (pageText) {
       details.name = pageText.substring(0, 200);
     }
   } catch (e) {
-    console.log('Could not extract IPO details:', e.message);
+    // Could not extract IPO details
   }
   
   return details;
@@ -163,10 +147,8 @@ async function clickApplyButton(page, applyInfo) {
   
   try {
     await applyInfo.element.click();
-    console.log('Clicked Apply button');
     await page.waitForTimeout(2000);
   } catch (e) {
-    // Try alternative approach
     const selector = applyInfo.selector || 'button:has-text("Apply"), a:has-text("Apply")';
     const element = page.locator(selector).first();
     if (await element.isVisible({ timeout: 3000 })) {

@@ -10,7 +10,6 @@ const { waitForPageReady } = require('./common');
  * @param {string} dpName - Name of the DP to select (e.g., "Nepal Bank Limited")
  */
 async function selectDP(page, dpName) {
-  // Wait for the DP dropdown to be visible instead of networkidle
   await waitForPageReady(page, [
     'span.select2-container',
     'select2#selectBranch',
@@ -18,8 +17,6 @@ async function selectDP(page, dpName) {
   ], 10000);
   await page.waitForTimeout(1000);
   
-  // MeroShare uses Select2 for the DP dropdown
-  // First, try to find and click the Select2 container
   const select2Selectors = [
     'span.select2-container:has-text("Select your DP")',
     'span.select2-selection:has-text("Select your DP")',
@@ -31,17 +28,13 @@ async function selectDP(page, dpName) {
   
   let dpSelected = false;
   
-  // Try Select2 approach first
   for (const selector of select2Selectors) {
     try {
       const select2Container = page.locator(selector).first();
       if (await select2Container.isVisible({ timeout: 2000 })) {
-        console.log(`Found Select2 container with selector: ${selector}`);
         await select2Container.click();
         await page.waitForTimeout(1000);
         
-        // Wait for Select2 dropdown to open and look for the option
-        // Select2 options are usually in a ul with class select2-results__options
         const optionSelectors = [
           `li.select2-results__option:has-text("${dpName}")`,
           `li:has-text("${dpName}")`,
@@ -55,7 +48,6 @@ async function selectDP(page, dpName) {
             if (await option.isVisible({ timeout: 2000 })) {
               await option.click();
               dpSelected = true;
-              console.log(`Selected DP "${dpName}" from Select2 dropdown`);
               await page.waitForTimeout(500);
               break;
             }
@@ -71,7 +63,6 @@ async function selectDP(page, dpName) {
     }
   }
   
-  // If Select2 didn't work, try native select
   if (!dpSelected) {
     const dpSelectors = [
       'select#selectBranch',
@@ -90,7 +81,6 @@ async function selectDP(page, dpName) {
           try {
             await dropdown.selectOption({ label: dpName });
             dpSelected = true;
-            console.log(`Selected DP "${dpName}" using selector: ${selector}`);
             break;
           } catch (e) {
             await dropdown.click();
@@ -109,7 +99,6 @@ async function selectDP(page, dpName) {
     }
   }
   
-  // If it's a custom dropdown (not native select), try different approach
   if (!dpSelected) {
     const customDropdownSelectors = [
       'ng-select',
@@ -130,7 +119,6 @@ async function selectDP(page, dpName) {
       try {
         const dropdown = page.locator(selector).first();
         if (await dropdown.isVisible({ timeout: 2000 })) {
-          console.log(`Found dropdown with selector: ${selector}, clicking...`);
           await dropdown.click();
           await page.waitForTimeout(1000);
           
@@ -151,7 +139,6 @@ async function selectDP(page, dpName) {
               if (await option.isVisible({ timeout: 2000 })) {
                 await option.click();
                 dpSelected = true;
-                console.log(`Selected DP "${dpName}" from custom dropdown using: ${optionSelector}`);
                 break;
               }
             } catch (e) {
@@ -167,14 +154,6 @@ async function selectDP(page, dpName) {
     }
   }
   
-  if (!dpSelected) {
-    console.warn(`⚠️ Could not select DP: ${dpName}. Continuing without DP selection...`);
-    // Don't throw error - some sites might not require DP selection
-    // The login might still work
-  } else {
-    console.log(`✅ Successfully selected DP: ${dpName}`);
-  }
-  
   await page.waitForTimeout(500);
   return dpSelected;
 }
@@ -187,7 +166,6 @@ async function selectDP(page, dpName) {
  * @param {string} credentials.password - Password
  */
 async function fillLoginForm(page, { username, password }) {
-  // Wait for login form fields to be visible instead of networkidle
   await waitForPageReady(page, [
     'input#username',
     'input[name="username"]',
@@ -214,7 +192,6 @@ async function fillLoginForm(page, { username, password }) {
     'input[id*="pass"]',
   ];
   
-  // Fill username
   let usernameFilled = false;
   for (const selector of usernameSelectors) {
     try {
@@ -234,7 +211,6 @@ async function fillLoginForm(page, { username, password }) {
     throw new Error('Could not find username field');
   }
   
-  // Fill password
   let passwordFilled = false;
   for (const selector of passwordSelectors) {
     try {
@@ -298,18 +274,12 @@ async function clickLoginButton(page) {
  * @param {string} credentials.dp - Depository Participant name (optional)
  */
 async function performLogin(page, { username, password, dp }) {
-  // Select DP first if provided
   if (dp) {
     await selectDP(page, dp);
   }
   
-  // Fill login form
   await fillLoginForm(page, { username, password });
-  
-  // Click login button
   await clickLoginButton(page);
-  
-  // Wait for navigation or response
   await page.waitForTimeout(2000);
 }
 

@@ -9,24 +9,20 @@ const { waitForPageReady } = require('./common');
  * @param {import('@playwright/test').Page} page - Playwright page object
  */
 async function clickMyASBA(page) {
-  // Wait for "My ASBA" link to be visible instead of networkidle
   try {
     await page.waitForSelector('a:has-text("My ASBA"), *:has-text("My ASBA")', { timeout: 15000 });
   } catch (e) {
-    // Fallback: wait for navigation to complete (URL changed from login)
     try {
       await page.waitForFunction(
         () => !window.location.href.includes('login'),
         { timeout: 10000 }
       );
     } catch (e2) {
-      // Last resort: use our helper function
       await waitForPageReady(page, ['body'], 5000);
     }
   }
   await page.waitForTimeout(1000);
   
-  // Common selectors for "My ASBA" link/button
   const myASBASelectors = [
     'a:has-text("My ASBA")',
     'button:has-text("My ASBA")',
@@ -48,8 +44,6 @@ async function clickMyASBA(page) {
       if (await element.isVisible({ timeout: 3000 })) {
         await element.click();
         clicked = true;
-        console.log(`Clicked "My ASBA" using selector: ${selector}`);
-        // Wait for navigation or page update
         await page.waitForTimeout(2000);
         break;
       }

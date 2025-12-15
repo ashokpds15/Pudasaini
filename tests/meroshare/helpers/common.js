@@ -15,17 +15,15 @@ async function waitForPageReady(page, selectors, timeout = 10000) {
   for (const selector of selectorArray) {
     try {
       await page.waitForSelector(selector, { timeout });
-      return; // Successfully found element
+      return;
     } catch (e) {
-      continue; // Try next selector
+      continue;
     }
   }
   
-  // If all selectors failed, wait for basic page load as fallback
   try {
     await page.waitForLoadState('load', { timeout: 5000 });
   } catch (e) {
-    // Last resort: just wait a short time
     await page.waitForTimeout(1000);
   }
 }
@@ -36,19 +34,14 @@ async function waitForPageReady(page, selectors, timeout = 10000) {
  * @returns {Promise<boolean>} - True if login appears successful
  */
 async function isLoginSuccessful(page) {
-  // Wait a bit for page to potentially navigate
   await page.waitForTimeout(2000);
   
   const currentUrl = page.url();
-  console.log('Current URL after login attempt:', currentUrl);
   
-  // Check if URL changed (not on login page anymore) - this is the strongest indicator
   if (!currentUrl.includes('login') && !currentUrl.includes('#/login')) {
-    console.log('✅ Login successful - URL changed away from login page');
     return true;
   }
   
-  // Check for success indicators (dashboard, profile, etc.)
   const successSelectors = [
     'a:has-text("My ASBA")',
     'a:has-text("Dashboard")',
@@ -62,7 +55,6 @@ async function isLoginSuccessful(page) {
     try {
       const element = page.locator(selector).first();
       if (await element.isVisible({ timeout: 2000 })) {
-        console.log('✅ Login successful - found success indicator:', selector);
         return true;
       }
     } catch (e) {
@@ -70,7 +62,6 @@ async function isLoginSuccessful(page) {
     }
   }
   
-  // Check for error messages
   const errorSelectors = [
     '.error',
     '.alert-danger',
@@ -90,8 +81,6 @@ async function isLoginSuccessful(page) {
     try {
       const error = page.locator(selector).first();
       if (await error.isVisible({ timeout: 1000 })) {
-        const errorText = await error.textContent();
-        console.log('❌ Login error detected:', errorText?.trim() || selector);
         return false;
       }
     } catch (e) {
@@ -99,7 +88,6 @@ async function isLoginSuccessful(page) {
     }
   }
   
-  // Check for captcha or other blockers
   const blockerSelectors = [
     '[class*="captcha" i]',
     '[id*="captcha" i]',
@@ -112,7 +100,6 @@ async function isLoginSuccessful(page) {
     try {
       const blocker = page.locator(selector).first();
       if (await blocker.isVisible({ timeout: 1000 })) {
-        console.log('⚠️ Captcha or blocker detected:', selector);
         return false;
       }
     } catch (e) {
@@ -120,20 +107,18 @@ async function isLoginSuccessful(page) {
     }
   }
   
-  // If still on login page after all checks, assume failed
   if (currentUrl.includes('login') || currentUrl.includes('#/login')) {
-    console.log('❌ Login failed - still on login page');
-    // Take screenshot for debugging
     try {
-      await page.screenshot({ path: 'login-failed-debug.png', fullPage: true });
-      console.log('Screenshot saved: login-failed-debug.png');
+      await page.locator('input[type="password"], input[name*="password" i]').evaluate(el => el.value = '').catch(() => {});
+      await page.locator('input[name*="username" i], input[id*="username" i]').evaluate(el => el.value = '').catch(() => {});
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: 'test-results/login-failed-debug.png', fullPage: true });
     } catch (e) {
-      console.log('Could not take screenshot:', e.message);
+      // Screenshot failed, continue
     }
     return false;
   }
   
-  // Default: assume failed if we can't determine success
   return false;
 }
 

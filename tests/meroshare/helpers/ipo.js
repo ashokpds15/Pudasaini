@@ -17,7 +17,6 @@ async function fillIPOApplication(page, applicationData = {}) {
   
   await page.waitForTimeout(2000);
   
-  // Wait for application form to load
   try {
     await waitForPageReady(page, [
       'form',
@@ -27,10 +26,9 @@ async function fillIPOApplication(page, applicationData = {}) {
       'input[type="text"]'
     ], 10000);
   } catch (e) {
-    console.log('Form not found, continuing...');
+    // Form not found, continuing
   }
   
-  // Fill quantity field
   const quantitySelectors = [
     'input[name*="quantity" i]',
     'input[name*="unit" i]',
@@ -48,7 +46,6 @@ async function fillIPOApplication(page, applicationData = {}) {
         await field.clear();
         await field.fill(quantity.toString());
         quantityFilled = true;
-        console.log(`Filled quantity: ${quantity} using selector: ${selector}`);
         break;
       }
     } catch (e) {
@@ -56,7 +53,6 @@ async function fillIPOApplication(page, applicationData = {}) {
     }
   }
   
-  // Fill CRN if provided
   if (crn) {
     const crnSelectors = [
       'input[name*="crn" i]',
@@ -70,7 +66,6 @@ async function fillIPOApplication(page, applicationData = {}) {
         if (await field.isVisible({ timeout: 2000 })) {
           await field.clear();
           await field.fill(crn);
-          console.log(`Filled CRN using selector: ${selector}`);
           break;
         }
       } catch (e) {
@@ -79,7 +74,6 @@ async function fillIPOApplication(page, applicationData = {}) {
     }
   }
   
-  // Fill PIN if provided
   if (pin) {
     const pinSelectors = [
       'input[name*="pin" i]',
@@ -94,7 +88,6 @@ async function fillIPOApplication(page, applicationData = {}) {
         if (await field.isVisible({ timeout: 2000 })) {
           await field.clear();
           await field.fill(pin);
-          console.log(`Filled PIN using selector: ${selector}`);
           break;
         }
       } catch (e) {
@@ -134,7 +127,6 @@ async function submitIPOApplication(page) {
       const button = page.locator(selector).first();
       if (await button.isVisible({ timeout: 3000 })) {
         await button.click();
-        console.log(`Clicked submit button using selector: ${selector}`);
         await page.waitForTimeout(3000);
         return true;
       }
@@ -143,16 +135,11 @@ async function submitIPOApplication(page) {
     }
   }
   
-  // If submit button not found, check if form auto-submits or if we're already on success page
-  console.log('Submit button not found. Checking if form was already submitted...');
   const currentUrl = page.url();
   if (!currentUrl.includes('asba') && !currentUrl.includes('login')) {
-    console.log('URL changed - form may have auto-submitted');
     return true;
   }
   
-  // Return false instead of throwing error - make it non-blocking
-  console.warn('Could not find submit button. Form may need manual submission.');
   return false;
 }
 
@@ -164,7 +151,6 @@ async function submitIPOApplication(page) {
 async function checkApplicationStatus(page) {
   await page.waitForTimeout(2000);
   
-  // Check for success messages
   const successSelectors = [
     '*:has-text("success")',
     '*:has-text("applied")',
@@ -189,7 +175,6 @@ async function checkApplicationStatus(page) {
     }
   }
   
-  // Check for error messages
   const errorSelectors = [
     '*:has-text("error")',
     '*:has-text("failed")',
@@ -213,7 +198,6 @@ async function checkApplicationStatus(page) {
     }
   }
   
-  // Check URL change
   const currentUrl = page.url();
   if (!currentUrl.includes('asba') && !currentUrl.includes('login')) {
     return {

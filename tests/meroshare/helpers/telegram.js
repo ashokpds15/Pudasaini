@@ -31,17 +31,13 @@ function initBot(token) {
  */
 async function sendMessage(chatId, message, options = {}) {
   if (!bot) {
-    console.warn('Telegram bot not initialized. Skipping message.');
     return;
   }
   
   try {
     await bot.sendMessage(chatId, message, options);
-    console.log('Telegram message sent successfully');
   } catch (error) {
-    console.error('Error sending Telegram message:', error.message);
-    // Don't throw - make Telegram errors non-blocking
-    console.warn('Continuing without Telegram notification...');
+    // Telegram errors are non-blocking
   }
 }
 
@@ -51,16 +47,16 @@ async function sendMessage(chatId, message, options = {}) {
  * @param {string} ipoName - Name of the IPO
  */
 async function notifyIPOAvailable(chatId, ipoName) {
-  const message = `🚀 *IPO Open*`;
+  const message = `🚀 *IPO Open 🤩*`;
   
   await sendMessage(chatId, message, { parse_mode: 'Markdown' });
 }
 
 /**
  * Send notification about IPO application status
- * @param {string} chatId - Telegram chat ID
- * @param {string} status - Application status (success, failed, etc.)
- * @param {string} details - Additional details
+ * @param {string} chatId 
+ * @param {string} status 
+ * @param {string} details 
  */
 async function notifyIPOStatus(chatId, status, details = '') {
   const emoji = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⚠️';
@@ -87,7 +83,7 @@ async function notifyError(chatId, error) {
 /**
  * Send daily check notification
  * @param {string} chatId - Telegram chat ID
- * @param {boolean} applyFound - Whether Apply button was found
+ * @param {boolean} applyFound
  */
 async function notifyDailyCheck(chatId, applyFound) {
   const message = applyFound
@@ -102,7 +98,7 @@ async function notifyDailyCheck(chatId, applyFound) {
  * @param {string} chatId - Telegram chat ID
  */
 async function notifyIPONotFound(chatId) {
-  const message = `ℹ️ *No IPO Today*`;
+  const message = `ℹ️ *No IPO Today 🤦‍♀️*`;
   
   await sendMessage(chatId, message, { parse_mode: 'Markdown' });
 }
