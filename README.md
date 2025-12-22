@@ -137,6 +137,13 @@ Add these secrets:
 - ✅ GitHub Actions scheduled automation
 - ✅ Element-based waits (reliable)
 
+## Screenshots
+
+### Telegram Notification
+![Telegram Notification](screenshots/Telegram%20Notification.png)
+
+*Example of IPO notification received on Telegram with company details and verification status*
+
 ## Resources
 
 - [Playwright Documentation](https://playwright.dev)
