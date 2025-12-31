@@ -10,7 +10,7 @@ const { waitForPageReady } = require('./common');
  * @returns {Promise<{found: boolean, element?: any, text?: string, shareType?: string, ipoDetails?: object, rowElement?: any}>}
  */
 async function checkForApplyButton(page) {
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000); // Increased wait for high traffic
   
   try {
     await waitForPageReady(page, [
@@ -19,8 +19,10 @@ async function checkForApplyButton(page) {
       '.table',
       '[class*="asba" i]',
       '.company-list'
-    ], 10000);
-  } catch (e) {}
+    ], 30000); // Increased timeout for high traffic scenarios
+  } catch (e) {
+    console.log('Page ready wait timed out, continuing to check for elements...');
+  }
   
   try {
     const pageContent = await page.textContent('body');
