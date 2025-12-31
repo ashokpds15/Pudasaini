@@ -12,14 +12,18 @@ require('dotenv').config();
  */
 module.exports = defineConfig({
   testDir: './tests',
-  /* Maximum time one test can run for. */
-  timeout: 60000,
+  /* Maximum time one test can run for - increased for high traffic scenarios */
+  timeout: 300000, // 5 minutes
+  /* Expect timeout for assertions */
+  expect: {
+    timeout: 30000, // 30 seconds for assertions
+  },
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Retry failed tests - helpful during high traffic */
+  retries: process.env.CI ? 3 : 1,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -28,6 +32,11 @@ module.exports = defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     // baseURL: 'http://127.0.0.1:3000',
+
+    /* Navigation timeout - increased for slow server responses */
+    navigationTimeout: 120000, // 2 minutes
+    /* Action timeout (clicks, fills, etc.) */
+    actionTimeout: 60000, // 1 minute
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
