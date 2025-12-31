@@ -14,25 +14,46 @@ const {
   submitIPOApplication,
   checkApplicationStatus,
   initBot,
-  notifyIPOAvailable,
   notifyIPOStatus,
   notifyError,
-  notifyIPONotFound,
-  notifyIPOOpenForReview,
+  // Retry utilities for high traffic scenarios
+  navigateWithRetry,
+  waitForElementWithRetry,
+  retryWithBackoff,
 } = require('./helpers');
 
 test.describe('MeroShare IPO Automation', () => {
+  test.setTimeout(300000); // Set test timeout to 5 minutes (increased for high traffic)
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('https://meroshare.cdsc.com.np/#/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // Use retry-enabled navigation for high traffic scenarios
+    const loginUrl = 'https://meroshare.cdsc.com.np/#/login';
+    
+    await navigateWithRetry(page, loginUrl, {
+      maxRetries: 5,
+      timeout: 120000, // 2 minutes per attempt
+      waitUntil: 'domcontentloaded',
+    });
+    
+    // Wait for login form elements with retry
     try {
-      await page.waitForSelector('form, input#username, select2#selectBranch', { timeout: 15000 });
+      await waitForElementWithRetry(page, [
+        'form',
+        'input#username',
+        'select2#selectBranch',
+        'input[type="text"]',
+      ], {
+        timeout: 60000,
+        maxRetries: 3,
+        reloadOnFail: true,
+      });
     } catch (e) {
-      await page.waitForSelector('body', { timeout: 5000 });
+      console.log('Could not find login form elements, continuing anyway...');
+      await page.waitForTimeout(2000);
     }
   });
 
-  test('should check for IPO and send Telegram notification', async ({ page }) => {
+  test('should check for IPO and auto-apply', async ({ page }) => {
     const username = process.env.MEROSHARE_USERNAME;
     const password = process.env.MEROSHARE_PASSWORD;
     const dp = process.env.MEROSHARE_DP_NP;
@@ -47,21 +68,52 @@ test.describe('MeroShare IPO Automation', () => {
       throw new Error('MEROSHARE_USERNAME and MEROSHARE_PASSWORD must be set in .env file');
     }
     
+    // Initialize Telegram bot (but don't send any messages yet)
     if (telegramToken) {
       try {
         initBot(telegramToken);
       } catch (error) {}
     }
+
+    // Track IPO details for final notification
+    let ipoDetails = null;
+    let finalStatus = 'no_ipo'; // Possible: 'no_ipo', 'success', 'failed', 'needs_review'
+    let failureReason = '';
     
     try {
-      await page.waitForSelector('form, input#username, select2#selectBranch', { timeout: 15000 });
-    } catch (e) {}
-    await page.waitForTimeout(1000);
-    
-    try {
-      await performLogin(page, { username, password, dp });
+      // Wait for login form
+      try {
+        await waitForElementWithRetry(page, [
+          'form',
+          'input#username',
+          'select2#selectBranch',
+        ], { timeout: 30000, maxRetries: 2 });
+      } catch (e) {
+        console.log('Login form elements not found, attempting to continue...');
+      }
+      await page.waitForTimeout(1000);
       
-      await page.waitForTimeout(3000);
+      // Login with retry for high traffic scenarios
+      await retryWithBackoff(
+        async () => {
+          await performLogin(page, { username, password, dp });
+        },
+        {
+          maxRetries: 3,
+          initialDelay: 3000,
+          onRetry: async (error, attempt) => {
+            console.log(`Login attempt ${attempt} failed: ${error.message}. Retrying...`);
+            try {
+              await page.reload({ timeout: 60000, waitUntil: 'domcontentloaded' });
+              await page.waitForTimeout(2000);
+            } catch (e) {
+              console.log('Page reload failed, continuing...');
+            }
+          }
+        }
+      );
+      
+      await page.waitForTimeout(5000);
       
       const success = await isLoginSuccessful(page);
       if (!success) {
@@ -81,37 +133,63 @@ test.describe('MeroShare IPO Automation', () => {
         throw new Error(errorMessage);
       }
       
-      await clickMyASBA(page);
-      await page.waitForTimeout(3000);
-
-      const applyInfo = await checkForApplyButton(page);
-
-      if (!applyInfo.found) {
-        if (telegramChatId && telegramToken) {
-          await notifyIPONotFound(telegramChatId);
+      // Click My ASBA with retry
+      await retryWithBackoff(
+        async () => {
+          await clickMyASBA(page);
+        },
+        {
+          maxRetries: 3,
+          initialDelay: 2000,
+          onRetry: (error, attempt) => {
+            console.log(`My ASBA click attempt ${attempt} failed. Retrying...`);
+          }
         }
+      );
+      await page.waitForTimeout(5000);
+
+      // Check for IPO with retry
+      const applyInfo = await retryWithBackoff(
+        async () => {
+          const info = await checkForApplyButton(page);
+          if (info.found || info.reason) {
+            return info;
+          }
+          throw new Error('Page not fully loaded');
+        },
+        {
+          maxRetries: 3,
+          initialDelay: 3000,
+          onRetry: async (error, attempt) => {
+            console.log(`ASBA check attempt ${attempt} - page may still be loading...`);
+            await page.waitForTimeout(2000);
+          }
+        }
+      );
+
+      // No IPO available - exit silently (no notification)
+      if (!applyInfo.found) {
+        console.log('No IPO available for application.');
+        finalStatus = 'no_ipo';
         return;
       }
       
+      // Store IPO details
+      ipoDetails = applyInfo.ipoDetails;
+      
+      // Verify share details
       const clickedRow = await clickShareRow(page, applyInfo);
       if (!clickedRow) {
-        if (telegramChatId && telegramToken) {
-          await notifyError(telegramChatId, 'Could not click on share row to view details');
-        }
-        return;
+        throw new Error('Could not click on share row to view details');
       }
       
       const verification = await verifyShareDetails(page, 100, 10);
       
       if (!verification.valid) {
-        if (telegramChatId && telegramToken) {
-          await notifyIPOOpenForReview(telegramChatId, {
-            companyName: applyInfo.ipoDetails?.companyName,
-            shareValuePerUnit: verification.shareValuePerUnit,
-            minUnit: verification.minUnit,
-            reason: verification.reason
-          });
-        }
+        // Share needs manual review (price != 100 or min units != 10)
+        finalStatus = 'needs_review';
+        failureReason = `IPO needs manual review: ${verification.reason}`;
+        console.log(failureReason);
         return;
       }
       
@@ -120,53 +198,134 @@ test.describe('MeroShare IPO Automation', () => {
       
       const applyInfoRefresh = await checkForApplyButton(page);
       if (!applyInfoRefresh.found) {
-        if (telegramChatId && telegramToken) {
-          await notifyError(telegramChatId, 'Could not find Apply button after verification');
-        }
+        throw new Error('Could not find Apply button after verification');
+      }
+
+      // Only proceed with auto-apply if all required env vars are set
+      if (!ipoBank || !ipoAccountNumber || !ipoKitta || !ipoCrn) {
+        console.log('Auto-apply disabled: Missing required environment variables (MEROSHARE_BANK, MEROSHARE_P_ACCOUNT_NO, MEROSHARE_KITTA_N0, MEROSHARE_CRN_NO)');
+        finalStatus = 'needs_review';
+        failureReason = 'Auto-apply not configured. Please apply manually.';
         return;
       }
-      
-      if (telegramChatId && telegramToken) {
-        await notifyIPOAvailable(telegramChatId, applyInfoRefresh.ipoDetails);
-      }
 
-      if (ipoBank && ipoAccountNumber && ipoKitta && ipoCrn) {
-        await clickApplyButton(page, applyInfoRefresh);
-        await page.waitForTimeout(3000);
+      // Attempt to fill and submit IPO application with retry
+      await retryWithBackoff(
+        async () => {
+          await clickApplyButton(page, applyInfoRefresh);
+          await page.waitForTimeout(3000);
 
-        await fillIPOApplication(page, {
-          bank: ipoBank,
-          accountNumber: ipoAccountNumber,
-          kitta: ipoKitta,
-          crn: ipoCrn
-        });
-        await page.waitForTimeout(2000);
+          await fillIPOApplication(page, {
+            bank: ipoBank,
+            accountNumber: ipoAccountNumber,
+            kitta: ipoKitta,
+            crn: ipoCrn
+          });
+          await page.waitForTimeout(2000);
 
-        const submitted = await submitIPOApplication(page);
-        await page.waitForTimeout(3000);
-
-        if (!page.isClosed()) {
-          const status = await checkApplicationStatus(page);
-          if (telegramChatId && telegramToken) {
-            const statusText = status.success ? 'success' : 'failed';
-            await notifyIPOStatus(telegramChatId, statusText, status.message || 'IPO application process completed');
+          const submitted = await submitIPOApplication(page);
+          if (!submitted) {
+            throw new Error('Failed to submit IPO application');
           }
-        } else {
-          if (telegramChatId && telegramToken) {
-            await notifyIPOStatus(telegramChatId, 'success', 'IPO application submitted successfully (page closed).');
+          await page.waitForTimeout(3000);
+        },
+        {
+          maxRetries: 2,
+          initialDelay: 3000,
+          onRetry: async (error, attempt) => {
+            console.log(`IPO application attempt ${attempt} failed: ${error.message}. Retrying...`);
+            // Go back and try again
+            try {
+              await goBackToMyASBA(page);
+              await page.waitForTimeout(2000);
+            } catch (e) {
+              console.log('Could not go back, continuing...');
+            }
           }
         }
+      );
+
+      // Check final status
+      if (!page.isClosed()) {
+        const status = await checkApplicationStatus(page);
+        if (status.success) {
+          finalStatus = 'success';
+          console.log('IPO application submitted successfully!');
+        } else {
+          finalStatus = 'failed';
+          failureReason = status.message || 'Application submission failed';
+        }
+      } else {
+        // Page closed during submission - assume success
+        finalStatus = 'success';
       }
       
     } catch (error) {
-      if (telegramChatId && telegramToken) {
-        if (error.message && error.message.includes('Target page, context or browser has been closed')) {
-          await notifyIPOStatus(telegramChatId, 'unknown', 'Page closed unexpectedly during automation. IPO may or may not have been submitted.');
-        } else {
-          await notifyError(telegramChatId, error.message);
-        }
+      console.error(`Error during IPO automation: ${error.message}`);
+      finalStatus = 'failed';
+      failureReason = error.message;
+      
+      // Check if page closed unexpectedly (might still have succeeded)
+      if (error.message && error.message.includes('Target page, context or browser has been closed')) {
+        finalStatus = 'unknown';
+        failureReason = 'Page closed unexpectedly. IPO may or may not have been submitted.';
       }
-      throw error;
+    }
+    
+    // Send single Telegram notification based on final status
+    if (telegramChatId && telegramToken) {
+      try {
+        switch (finalStatus) {
+          case 'success':
+            const companyName = ipoDetails?.companyName || 'IPO';
+            await notifyIPOStatus(
+              telegramChatId, 
+              'success', 
+              `✅ ${companyName} IPO application submitted successfully!\n\nYour application has been auto-filled and submitted.`
+            );
+            break;
+            
+          case 'failed':
+            await notifyError(
+              telegramChatId,
+              `❌ Failed to auto-apply for IPO.\n\n` +
+              `Please apply manually at https://meroshare.cdsc.com.np\n\n` +
+              `We apologize for the inconvenience.`
+            );
+            break;
+            
+          case 'needs_review':
+            const ipoName = ipoDetails?.companyName || 'Available IPO';
+            await notifyError(
+              telegramChatId,
+              `⚠️ ${ipoName} requires manual review.\n\n` +
+              `${failureReason}\n\n` +
+              `Please review and apply manually at https://meroshare.cdsc.com.np`
+            );
+            break;
+            
+          case 'unknown':
+            await notifyError(
+              telegramChatId,
+              `⚠️ IPO application status unknown.\n\n` +
+              `${failureReason}\n\n` +
+              `Please check your MeroShare account to verify if the application was submitted.`
+            );
+            break;
+            
+          case 'no_ipo':
+            // No notification for no IPO - silent exit
+            console.log('No IPO available - no notification sent.');
+            break;
+        }
+      } catch (notifyError) {
+        console.error(`Failed to send Telegram notification: ${notifyError.message}`);
+      }
+    }
+    
+    // Throw error if failed (so test fails)
+    if (finalStatus === 'failed') {
+      throw new Error(failureReason);
     }
   });
 });
