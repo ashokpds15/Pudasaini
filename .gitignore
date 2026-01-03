@@ -3,6 +3,10 @@ node_modules/
 
 # Environment variables
 .env
+*.tfvars
+*.terraform
+terraform.tfstate
+terraform.tfstate.backup
 
 # Playwright
 playwright-report/
@@ -12,4 +16,5 @@ test-results/
 
 # OS
 .DS_Store
+
 
