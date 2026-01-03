@@ -16,6 +16,8 @@ const {
   initBot,
   notifyIPOStatus,
   notifyError,
+  notifyIPONotFound,
+  notifyIPOOpenForReview,
   // Retry utilities for high traffic scenarios
   navigateWithRetry,
   waitForElementWithRetry,
@@ -72,7 +74,10 @@ test.describe('MeroShare IPO Automation', () => {
     if (telegramToken) {
       try {
         initBot(telegramToken);
-      } catch (error) {}
+        console.log('Telegram bot initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Telegram bot:', error.message);
+      }
     }
 
     // Track IPO details for final notification
@@ -167,97 +172,95 @@ test.describe('MeroShare IPO Automation', () => {
         }
       );
 
-      // No IPO available - exit silently (no notification)
+      // No IPO available
       if (!applyInfo.found) {
         console.log('No IPO available for application.');
         finalStatus = 'no_ipo';
-        return;
-      }
-      
-      // Store IPO details
-      ipoDetails = applyInfo.ipoDetails;
-      
-      // Verify share details
-      const clickedRow = await clickShareRow(page, applyInfo);
-      if (!clickedRow) {
-        throw new Error('Could not click on share row to view details');
-      }
-      
-      const verification = await verifyShareDetails(page, 100, 10);
-      
-      if (!verification.valid) {
-        // Share needs manual review (price != 100 or min units != 10)
-        finalStatus = 'needs_review';
-        failureReason = `IPO needs manual review: ${verification.reason}`;
-        console.log(failureReason);
-        return;
-      }
-      
-      await goBackToMyASBA(page);
-      await page.waitForTimeout(2000);
-      
-      const applyInfoRefresh = await checkForApplyButton(page);
-      if (!applyInfoRefresh.found) {
-        throw new Error('Could not find Apply button after verification');
-      }
-
-      // Only proceed with auto-apply if all required env vars are set
-      if (!ipoBank || !ipoAccountNumber || !ipoKitta || !ipoCrn) {
-        console.log('Auto-apply disabled: Missing required environment variables (MEROSHARE_BANK, MEROSHARE_P_ACCOUNT_NO, MEROSHARE_KITTA_N0, MEROSHARE_CRN_NO)');
-        finalStatus = 'needs_review';
-        failureReason = 'Auto-apply not configured. Please apply manually.';
-        return;
-      }
-
-      // Attempt to fill and submit IPO application with retry
-      await retryWithBackoff(
-        async () => {
-          await clickApplyButton(page, applyInfoRefresh);
-          await page.waitForTimeout(3000);
-
-          await fillIPOApplication(page, {
-            bank: ipoBank,
-            accountNumber: ipoAccountNumber,
-            kitta: ipoKitta,
-            crn: ipoCrn
-          });
+      } else {
+        // IPO found - proceed with application
+        // Store IPO details
+        ipoDetails = applyInfo.ipoDetails;
+        
+        // Verify share details
+        const clickedRow = await clickShareRow(page, applyInfo);
+        if (!clickedRow) {
+          throw new Error('Could not click on share row to view details');
+        }
+        
+        const verification = await verifyShareDetails(page, 100, 10);
+        
+        if (!verification.valid) {
+          // Share needs manual review (price != 100 or min units != 10)
+          finalStatus = 'needs_review';
+          failureReason = `IPO needs manual review: ${verification.reason}`;
+          console.log(failureReason);
+        } else {
+          await goBackToMyASBA(page);
           await page.waitForTimeout(2000);
-
-          const submitted = await submitIPOApplication(page);
-          if (!submitted) {
-            throw new Error('Failed to submit IPO application');
+          
+          const applyInfoRefresh = await checkForApplyButton(page);
+          if (!applyInfoRefresh.found) {
+            throw new Error('Could not find Apply button after verification');
           }
-          await page.waitForTimeout(3000);
-        },
-        {
-          maxRetries: 2,
-          initialDelay: 3000,
-          onRetry: async (error, attempt) => {
-            console.log(`IPO application attempt ${attempt} failed: ${error.message}. Retrying...`);
-            // Go back and try again
-            try {
-              await goBackToMyASBA(page);
-              await page.waitForTimeout(2000);
-            } catch (e) {
-              console.log('Could not go back, continuing...');
+
+          // Only proceed with auto-apply if all required env vars are set
+          if (!ipoBank || !ipoAccountNumber || !ipoKitta || !ipoCrn) {
+            console.log('Auto-apply disabled: Missing required environment variables (MEROSHARE_BANK, MEROSHARE_P_ACCOUNT_NO, MEROSHARE_KITTA_N0, MEROSHARE_CRN_NO)');
+            finalStatus = 'needs_review';
+            failureReason = 'Auto-apply not configured. Please apply manually.';
+          } else {
+            // Attempt to fill and submit IPO application with retry
+            await retryWithBackoff(
+              async () => {
+                await clickApplyButton(page, applyInfoRefresh);
+                await page.waitForTimeout(3000);
+
+                await fillIPOApplication(page, {
+                  bank: ipoBank,
+                  accountNumber: ipoAccountNumber,
+                  kitta: ipoKitta,
+                  crn: ipoCrn
+                });
+                await page.waitForTimeout(2000);
+
+                const submitted = await submitIPOApplication(page);
+                if (!submitted) {
+                  throw new Error('Failed to submit IPO application');
+                }
+                await page.waitForTimeout(3000);
+              },
+              {
+                maxRetries: 2,
+                initialDelay: 3000,
+                onRetry: async (error, attempt) => {
+                  console.log(`IPO application attempt ${attempt} failed: ${error.message}. Retrying...`);
+                  // Go back and try again
+                  try {
+                    await goBackToMyASBA(page);
+                    await page.waitForTimeout(2000);
+                  } catch (e) {
+                    console.log('Could not go back, continuing...');
+                  }
+                }
+              }
+            );
+
+            // Check final status
+            if (!page.isClosed()) {
+              const status = await checkApplicationStatus(page);
+              if (status.success) {
+                finalStatus = 'success';
+                console.log('IPO application submitted successfully!');
+              } else {
+                finalStatus = 'failed';
+                failureReason = status.message || 'Application submission failed';
+              }
+            } else {
+              // Page closed during submission - assume success
+              finalStatus = 'success';
             }
           }
         }
-      );
-
-      // Check final status
-      if (!page.isClosed()) {
-        const status = await checkApplicationStatus(page);
-        if (status.success) {
-          finalStatus = 'success';
-          console.log('IPO application submitted successfully!');
-        } else {
-          finalStatus = 'failed';
-          failureReason = status.message || 'Application submission failed';
-        }
-      } else {
-        // Page closed during submission - assume success
-        finalStatus = 'success';
       }
       
     } catch (error) {
@@ -295,13 +298,12 @@ test.describe('MeroShare IPO Automation', () => {
             break;
             
           case 'needs_review':
-            const ipoName = ipoDetails?.companyName || 'Available IPO';
-            await notifyError(
-              telegramChatId,
-              `⚠️ ${ipoName} requires manual review.\n\n` +
-              `${failureReason}\n\n` +
-              `Please review and apply manually at https://meroshare.cdsc.com.np`
-            );
+            await notifyIPOOpenForReview(telegramChatId, {
+              companyName: ipoDetails?.companyName || 'Available IPO',
+              shareValuePerUnit: ipoDetails?.shareValuePerUnit,
+              minUnit: ipoDetails?.minUnit,
+              reason: failureReason
+            });
             break;
             
           case 'unknown':
@@ -314,8 +316,8 @@ test.describe('MeroShare IPO Automation', () => {
             break;
             
           case 'no_ipo':
-            // No notification for no IPO - silent exit
-            console.log('No IPO available - no notification sent.');
+            // Send notification that no IPO is available
+            await notifyIPONotFound(telegramChatId);
             break;
         }
       } catch (notifyError) {
