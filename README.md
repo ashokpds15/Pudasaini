@@ -99,6 +99,9 @@ The project includes a GitHub Actions workflow that runs automatically at **9:00
 
 ### Setup GitHub Secrets
 
+You can set up the required secrets manually or using the provided Infrastructure as Code (OpenTofu/Terraform) configuration.
+
+#### Option 1: Manual Setup
 Go to: **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
 Add these secrets:
@@ -112,6 +115,30 @@ Add these secrets:
 - `MEROSHARE_TXN_PIN`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
+
+#### Option 2: Automated Setup (OpenTofu / Terraform)
+If you want to manage secrets as code, use the `infra/` folder:
+
+1. **Prerequisites:** Install [OpenTofu](https://opentofu.org/) (recommended) or [Terraform](https://developer.hashicorp.com/terraform/downloads).
+2. **Create a GitHub PAT:** Generate a [Personal Access Token](https://github.com/settings/tokens) with `repo` permissions.
+3. **Configure Variables:** Create `infra/<example_secret>.tfvars`:
+   ```hcl
+   PAT = "your_github_pat"
+   example_secret = {
+     MEROSHARE_USERNAME     = "..."
+     MEROSHARE_PASSWORD     = "..."
+     # ... add all other secrets here ...
+   }
+   ```
+4. **Deploy:**
+   ```bash
+   cd infra
+   tofu init
+   tofu apply -var-file="<example_secret>.tfvars"
+   ```
+   *(Note: You can use `terraform` instead of `tofu` if you prefer.)*
+
+   **Important:** Never commit `example_secret.tfvars`, `terraform.tfstate`, or `terraform.tfstate.backup` files as they contain plain-text secrets.
 
 ## Project Structure
 
@@ -146,3 +173,4 @@ Add these secrets:
 
 - [Playwright Documentation](https://playwright.dev)
 - [MeroShare](https://meroshare.cdsc.com.np)
+- [Moving Beyond Manual: Managing GitHub Infrastructure with OpenTofu](https://medium.com/@prazeina/moving-beyond-manual-managing-github-infrastructure-with-opentofu-f1d61a47d6fc)
