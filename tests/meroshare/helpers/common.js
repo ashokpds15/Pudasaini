@@ -108,11 +108,10 @@ async function isLoginSuccessful(page) {
   }
   
   if (currentUrl.includes('login') || currentUrl.includes('#/login')) {
+    // Clear sensitive fields
     try {
       await page.locator('input[type="password"], input[name*="password" i]').evaluate(el => el.value = '').catch(() => {});
       await page.locator('input[name*="username" i], input[id*="username" i]').evaluate(el => el.value = '').catch(() => {});
-      await page.waitForTimeout(500);
-      await page.screenshot({ path: 'test-results/page-error.png', fullPage: true });
     } catch (e) {}
     return false;
   }
