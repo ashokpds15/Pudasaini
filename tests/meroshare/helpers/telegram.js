@@ -31,41 +31,19 @@ function initBot(token) {
  */
 async function sendMessage(chatId, message, options = {}) {
   if (!bot) {
+    console.error('Telegram bot not initialized. Call initBot() first.');
     return;
   }
   
   try {
     await bot.sendMessage(chatId, message, options);
-  } catch (error) {}
-}
-
-/**
- * Send notification about IPO availability
- * @param {string} chatId - Telegram chat ID
- * @param {object} ipoDetails - IPO details object with companyName, subGroup, shareType, shareGroup
- */
-async function notifyIPOAvailable(chatId, ipoDetails) {
-  let message = '🚀 *IPO Open 🤩*\n\n';
-  
-  if (ipoDetails && typeof ipoDetails === 'object') {
-    if (ipoDetails.companyName) {
-      message += `*Company:* ${ipoDetails.companyName}\n`;
+    console.log('Telegram notification sent successfully');
+  } catch (error) {
+    console.error('Failed to send Telegram message:', error.message);
+    if (error.response && error.response.body) {
+      console.error('Telegram API error:', error.response.body.description);
     }
-    if (ipoDetails.subGroup) {
-      message += `*Sub Group:* ${ipoDetails.subGroup}\n`;
-    }
-    if (ipoDetails.shareType) {
-      message += `*Share Type:* ${ipoDetails.shareType}\n`;
-    }
-    if (ipoDetails.shareGroup) {
-      message += `*Share Group:* ${ipoDetails.shareGroup}\n`;
-    }
-    message += `\nTime: ${new Date().toLocaleString()}`;
-  } else {
-    message += `Time: ${new Date().toLocaleString()}`;
   }
-  
-  await sendMessage(chatId, message, { parse_mode: 'Markdown' });
 }
 
 /**
@@ -92,19 +70,6 @@ async function notifyError(chatId, error) {
   const message = `❌ *Error Occurred*\n\n` +
     `Error: ${error}\n` +
     `Time: ${new Date().toLocaleString()}`;
-  
-  await sendMessage(chatId, message, { parse_mode: 'Markdown' });
-}
-
-/**
- * Send daily check notification
- * @param {string} chatId - Telegram chat ID
- * @param {boolean} applyFound
- */
-async function notifyDailyCheck(chatId, applyFound) {
-  const message = applyFound
-    ? `✅ *Daily Check Complete*\n\nApply button found! Starting IPO application...`
-    : `ℹ️ *IPO Not Found*\n\nNo Apply button found on My ASBA page.\nNo IPO available at this time.\n\nTime: ${new Date().toLocaleString()}`;
   
   await sendMessage(chatId, message, { parse_mode: 'Markdown' });
 }
@@ -154,10 +119,8 @@ async function notifyIPOOpenForReview(chatId, details) {
 module.exports = {
   initBot,
   sendMessage,
-  notifyIPOAvailable,
   notifyIPOStatus,
   notifyError,
-  notifyDailyCheck,
   notifyIPONotFound,
   notifyIPOOpenForReview,
 };

@@ -55,6 +55,9 @@ async function checkForApplyButton(page) {
   try {
     const companyRows = await page.locator('div.company-list').all();
     
+    // Track if we find any Edit buttons (already applied)
+    let alreadyAppliedIpos = [];
+    
     for (const row of companyRows) {
       try {
         const rowText = await row.textContent({ timeout: 2000 });
@@ -64,55 +67,78 @@ async function checkForApplyButton(page) {
           continue;
         }
         
-        // Find the Apply button in this row
+        // Extract IPO details first
+        let companyName = '';
+        let subGroup = '';
+        let shareType = '';
+        let shareGroup = 'Ordinary Shares';
+        
+        try {
+          const companySpan = await row.locator('span[tooltip="Company Name"]').first().textContent({ timeout: 1000 });
+          companyName = companySpan.trim();
+        } catch (e) {}
+        
+        try {
+          const subGroupSpan = await row.locator('span[tooltip="Sub Group"]').first().textContent({ timeout: 1000 });
+          subGroup = subGroupSpan.trim();
+        } catch (e) {}
+        
+        try {
+          const shareTypeSpan = await row.locator('span[tooltip="Share Type"]').first().textContent({ timeout: 1000 });
+          shareType = shareTypeSpan.trim();
+        } catch (e) {}
+        
+        try {
+          const shareGroupSpan = await row.locator('span[tooltip="Share Group"]').first().textContent({ timeout: 1000 });
+          shareGroup = shareGroupSpan.trim();
+        } catch (e) {}
+        
+        const ipoDetails = {
+          companyName: companyName,
+          subGroup: subGroup,
+          shareType: shareType,
+          shareGroup: shareGroup
+        };
+        
+        // First check for Apply button
         const applyButton = row.locator('button:has-text("Apply")').first();
         
         if (await applyButton.isVisible({ timeout: 2000 })) {
-          
-          // Extract IPO details
-          let companyName = '';
-          let subGroup = '';
-          let shareType = '';
-          let shareGroup = 'Ordinary Shares';
-          
-          try {
-            const companySpan = await row.locator('span[tooltip="Company Name"]').first().textContent({ timeout: 1000 });
-            companyName = companySpan.trim();
-          } catch (e) {}
-          
-          try {
-            const subGroupSpan = await row.locator('span[tooltip="Sub Group"]').first().textContent({ timeout: 1000 });
-            subGroup = subGroupSpan.trim();
-          } catch (e) {}
-          
-          try {
-            const shareTypeSpan = await row.locator('span[tooltip="Share Type"]').first().textContent({ timeout: 1000 });
-            shareType = shareTypeSpan.trim();
-          } catch (e) {}
-          
-          try {
-            const shareGroupSpan = await row.locator('span[tooltip="Share Group"]').first().textContent({ timeout: 1000 });
-            shareGroup = shareGroupSpan.trim();
-          } catch (e) {}
-          
           return {
             found: true,
             element: applyButton,
             rowElement: row,
             text: 'Apply',
             isOrdinaryShares: true,
-            ipoDetails: {
-              companyName: companyName,
-              subGroup: subGroup,
-              shareType: shareType,
-              shareGroup: shareGroup
-            }
+            alreadyApplied: false,
+            ipoDetails: ipoDetails
           };
+        }
+        
+        // Check for Edit button (means already applied)
+        const editButton = row.locator('button:has-text("Edit")').first();
+        
+        if (await editButton.isVisible({ timeout: 1000 })) {
+          alreadyAppliedIpos.push({
+            companyName: companyName,
+            ipoDetails: ipoDetails
+          });
         }
         
       } catch (e) {
         continue;
       }
+    }
+    
+    // If we found Edit buttons but no Apply buttons, IPO is already applied
+    if (alreadyAppliedIpos.length > 0) {
+      return {
+        found: false,
+        alreadyApplied: true,
+        reason: 'IPO already applied',
+        appliedIpos: alreadyAppliedIpos,
+        ipoDetails: alreadyAppliedIpos[0].ipoDetails
+      };
     }
     
     // Fallback: If no company-list divs found, try table rows
@@ -127,6 +153,7 @@ async function checkForApplyButton(page) {
             continue;
           }
           
+          // Check for Apply button first
           const applyButton = row.locator('button:has-text("Apply"), a:has-text("Apply")').first();
           
           if (await applyButton.isVisible({ timeout: 1000 })) {
@@ -136,6 +163,24 @@ async function checkForApplyButton(page) {
               rowElement: row,
               text: 'Apply',
               isOrdinaryShares: true,
+              alreadyApplied: false,
+              ipoDetails: {
+                companyName: '',
+                subGroup: '',
+                shareType: '',
+                shareGroup: 'Ordinary Shares'
+              }
+            };
+          }
+          
+          // Check for Edit button (already applied)
+          const editButton = row.locator('button:has-text("Edit"), a:has-text("Edit")').first();
+          
+          if (await editButton.isVisible({ timeout: 1000 })) {
+            return {
+              found: false,
+              alreadyApplied: true,
+              reason: 'IPO already applied',
               ipoDetails: {
                 companyName: '',
                 subGroup: '',
@@ -150,95 +195,12 @@ async function checkForApplyButton(page) {
       }
     }
     
-    return { found: false, reason: 'No Ordinary Shares IPO available' };
+    return { found: false, alreadyApplied: false, reason: 'No Ordinary Shares IPO available' };
     
   } catch (e) {
-    return { found: false, reason: 'Error checking page' };
+    return { found: false, alreadyApplied: false, reason: 'Error checking page' };
   }
-  return { found: false };
-}
-
-/**
- * Get IPO details from ASBA page
- * @param {import('@playwright/test').Page} page - Playwright page object
- * @returns {Promise<Object>} - IPO details
- */
-async function getIPODetails(page) {
-  await page.waitForTimeout(2000);
-  
-  const details = {
-    name: '',
-    company: '',
-    issueSize: '',
-    price: '',
-    openDate: '',
-    closeDate: '',
-  };
-  
-  try {
-    // Try to find company name from table cells
-    const tableRows = await page.locator('table tr, .table tr').all();
-    
-    for (const row of tableRows) {
-      try {
-        const cells = await row.locator('td, th').all();
-        
-        for (let i = 0; i < cells.length; i++) {
-          const cell = cells[i];
-          const cellText = await cell.textContent();
-          
-          // Look for "Company Name" or "Scrip Name" label
-          if (cellText && /company|scrip|name|issue/i.test(cellText)) {
-            // Get the next cell or same cell content
-            if (i + 1 < cells.length) {
-              const valueCell = cells[i + 1];
-              const value = await valueCell.textContent();
-              if (value && value.trim() && !/(company|scrip|name|issue)/i.test(value)) {
-                details.name = value.trim();
-                details.company = value.trim();
-                break;
-              }
-            } else {
-              // Sometimes the value is in the same cell after the label
-              const parts = cellText.split(/[:]/)
-              if (parts.length > 1) {
-                details.name = parts[1].trim();
-                details.company = parts[1].trim();
-                break;
-              }
-            }
-          }
-        }
-        
-        if (details.name) break;
-      } catch (e) {
-        continue;
-      }
-    }
-    
-    // Fallback: try to find text containing company-like patterns
-    if (!details.name) {
-      for (const row of tableRows) {
-        const rowText = await row.textContent();
-        if (rowText && rowText.length > 10 && rowText.length < 150) {
-          // Look for patterns like "Limited", "Ltd.", "Bank", etc.
-          if (/(Limited|Ltd\.|Bank|Finance|Insurance|Hydropower|Power)/i.test(rowText)) {
-            // Extract just the company name part
-            const cleaned = rowText.replace(/Apply|Action|Status|Open|Close/gi, '').trim();
-            if (cleaned.length > 5 && cleaned.length < 100) {
-              details.name = cleaned;
-              details.company = cleaned;
-              break;
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    // Could not extract IPO details
-  }
-  
-  return details;
+  return { found: false, alreadyApplied: false };
 }
 
 /**
@@ -416,7 +378,6 @@ async function goBackToMyASBA(page) {
 
 module.exports = {
   checkForApplyButton,
-  getIPODetails,
   clickApplyButton,
   clickShareRow,
   verifyShareDetails,

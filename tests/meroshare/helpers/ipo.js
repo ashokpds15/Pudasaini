@@ -439,10 +439,16 @@ async function fillIPOApplication(page, applicationData = {}) {
 /**
  * Submit IPO application (handles Proceed -> PIN -> Apply flow)
  * @param {import('@playwright/test').Page} page - Playwright page object
- * @returns {Promise<boolean>} - True if submitted, false if button not found
+ * @returns {Promise<{submitted: boolean, clickedApply: boolean, error?: string}>} - Submission result details
  */
 async function submitIPOApplication(page) {
   await page.waitForTimeout(1000);
+  
+  const result = {
+    submitted: false,
+    clickedApply: false,
+    error: null
+  };
   
   const proceedSelectors = [
     'button:has-text("Proceed")',
@@ -472,12 +478,14 @@ async function submitIPOApplication(page) {
   }
   
   if (!proceedClicked) {
-    return false;
+    result.error = 'Could not find Proceed button';
+    return result;
   }
   
   const txnPin = process.env.MEROSHARE_TXN_PIN;
   if (!txnPin) {
-    return false;
+    result.error = 'Transaction PIN not configured';
+    return result;
   }
   
   const pinInputSelectors = [
@@ -507,7 +515,8 @@ async function submitIPOApplication(page) {
   }
   
   if (!pinEntered) {
-    return false;
+    result.error = 'Could not find PIN input field';
+    return result;
   }
   
   const applySelectors = [
@@ -523,15 +532,36 @@ async function submitIPOApplication(page) {
       const applyButton = page.locator(selector).first();
       if (await applyButton.isVisible({ timeout: 3000 })) {
         await applyButton.click();
-        await page.waitForTimeout(3000);
-        return true;
+        result.clickedApply = true;
+        
+        // Wait for response - look for any success/error message or loading to complete
+        await page.waitForTimeout(5000);
+        
+        // Check if button is still visible (might indicate form didn't submit)
+        try {
+          const stillVisible = await applyButton.isVisible({ timeout: 1000 });
+          if (stillVisible) {
+            // Button still visible - check if there's an error message
+            const pageContent = await page.textContent('body');
+            if (/error|invalid|failed|incorrect/i.test(pageContent)) {
+              result.error = 'Application may have failed - error detected on page';
+              return result;
+            }
+          }
+        } catch (e) {
+          // Button no longer visible, might have navigated - could be success
+        }
+        
+        result.submitted = true;
+        return result;
       }
     } catch (e) {
       continue;
     }
   }
   
-  return false;
+  result.error = 'Could not find Apply button';
+  return result;
 }
 
 /**
@@ -540,48 +570,133 @@ async function submitIPOApplication(page) {
  * @returns {Promise<{success: boolean, message?: string}>}
  */
 async function checkApplicationStatus(page) {
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000);
   
-  const successSelectors = [
-    '*:has-text("success")',
-    '*:has-text("applied")',
-    '*:has-text("submitted")',
-    '.success',
-    '.alert-success',
-    '[class*="success" i]',
+  // Get the full page content for pattern matching
+  let pageContent = '';
+  try {
+    pageContent = await page.textContent('body');
+  } catch (e) {
+    pageContent = '';
+  }
+  
+  // Check for specific MeroShare success messages (must match exact patterns)
+  const successPatterns = [
+    /IPO\s+(has\s+been\s+)?applied\s+successfully/i,
+    /application\s+(has\s+been\s+)?submitted\s+successfully/i,
+    /successfully\s+applied/i,
+    /your\s+application\s+has\s+been\s+submitted/i,
+    /application\s+successful/i,
   ];
   
-  for (const selector of successSelectors) {
+  for (const pattern of successPatterns) {
+    if (pattern.test(pageContent)) {
+      return {
+        success: true,
+        message: pageContent.match(pattern)?.[0] || 'Application submitted successfully'
+      };
+    }
+  }
+  
+  // Check for specific success alert/toast elements with strict patterns
+  const successAlertSelectors = [
+    '.alert-success',
+    '.toast-success',
+    '[class*="success-message"]',
+    '.swal2-success',
+    '.notification-success',
+  ];
+  
+  for (const selector of successAlertSelectors) {
     try {
       const element = page.locator(selector).first();
       if (await element.isVisible({ timeout: 2000 })) {
         const text = await element.textContent();
-        return {
-          success: true,
-          message: text?.trim()
-        };
+        // Only count as success if it contains IPO/application related keywords
+        if (text && (/IPO|application|submitted|applied/i.test(text))) {
+          return {
+            success: true,
+            message: text.trim()
+          };
+        }
       }
     } catch (e) {
       continue;
     }
   }
   
-  const errorSelectors = [
-    '*:has-text("error")',
-    '*:has-text("failed")',
-    '.error',
-    '.alert-danger',
-    '[class*="error" i]',
+  // Check for specific error patterns FIRST (before generic checks)
+  const errorPatterns = [
+    /already\s+(applied|submitted)/i,
+    /duplicate\s+application/i,
+    /application\s+(has\s+)?failed/i,
+    /error\s+(occurred|processing)/i,
+    /invalid\s+(PIN|CRN|account)/i,
+    /insufficient\s+balance/i,
+    /transaction\s+failed/i,
+    /unable\s+to\s+(process|submit)/i,
+    /please\s+try\s+again/i,
+    /something\s+went\s+wrong/i,
+    /server\s+error/i,
+    /session\s+expired/i,
+    /not\s+eligible/i,
+    /quota\s+exceeded/i,
+    /limit\s+(exceeded|reached)/i,
   ];
   
-  for (const selector of errorSelectors) {
+  for (const pattern of errorPatterns) {
+    if (pattern.test(pageContent)) {
+      const matchedText = pageContent.match(pattern)?.[0] || 'Application failed';
+      return {
+        success: false,
+        message: matchedText
+      };
+    }
+  }
+  
+  // Check for error alert/toast elements
+  const errorAlertSelectors = [
+    '.alert-danger',
+    '.alert-error',
+    '.toast-error',
+    '[class*="error-message"]',
+    '.swal2-error',
+    '.notification-error',
+    '.error-text',
+  ];
+  
+  for (const selector of errorAlertSelectors) {
     try {
       const element = page.locator(selector).first();
       if (await element.isVisible({ timeout: 2000 })) {
         const text = await element.textContent();
+        if (text && text.trim().length > 0) {
+          return {
+            success: false,
+            message: text.trim()
+          };
+        }
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  
+  // Check if we're still on the application form (means submission didn't complete)
+  const stillOnFormIndicators = [
+    'input[placeholder*="PIN" i]',
+    'input[placeholder*="CRN" i]',
+    'button:has-text("Proceed")',
+    'button:has-text("Apply")',
+  ];
+  
+  for (const selector of stillOnFormIndicators) {
+    try {
+      const element = page.locator(selector).first();
+      if (await element.isVisible({ timeout: 1000 })) {
         return {
           success: false,
-          message: text?.trim()
+          message: 'Application form still visible - submission may not have completed'
         };
       }
     } catch (e) {
@@ -589,17 +704,10 @@ async function checkApplicationStatus(page) {
     }
   }
   
-  const currentUrl = page.url();
-  if (!currentUrl.includes('asba') && !currentUrl.includes('login')) {
-    return {
-      success: true,
-      message: 'Application may have been submitted (URL changed)'
-    };
-  }
-  
+  // Don't assume success just because URL changed - be conservative
   return {
     success: false,
-    message: 'Could not determine application status'
+    message: 'Could not verify application status - please check MeroShare manually'
   };
 }
 

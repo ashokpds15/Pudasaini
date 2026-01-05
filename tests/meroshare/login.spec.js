@@ -5,7 +5,6 @@ const {
   isLoginSuccessful,
   clickMyASBA,
   checkForApplyButton,
-  getIPODetails,
   clickApplyButton,
   clickShareRow,
   verifyShareDetails,
@@ -128,11 +127,10 @@ test.describe('MeroShare IPO Automation', () => {
           errorMessage = `Login failed: ${errorText.trim()}`;
         }
         
+        // Clear sensitive fields before error
         try {
           await page.locator('input[type="password"], input[name*="password" i]').evaluate(el => el.value = '');
           await page.locator('input[name*="username" i], input[id*="username" i]').evaluate(el => el.value = '');
-          await page.waitForTimeout(500);
-          await page.screenshot({ path: 'test-results/login-failure.png', fullPage: true });
         } catch (e) {}
         
         throw new Error(errorMessage);
@@ -172,10 +170,16 @@ test.describe('MeroShare IPO Automation', () => {
         }
       );
 
-      // No IPO available
+      // No IPO available or already applied
       if (!applyInfo.found) {
-        console.log('No IPO available for application.');
-        finalStatus = 'no_ipo';
+        if (applyInfo.alreadyApplied) {
+          console.log('IPO already applied for this account.');
+          finalStatus = 'already_applied';
+          ipoDetails = applyInfo.ipoDetails;
+        } else {
+          console.log('No IPO available for application.');
+          finalStatus = 'no_ipo';
+        }
       } else {
         // IPO found - proceed with application
         // Store IPO details
@@ -193,6 +197,11 @@ test.describe('MeroShare IPO Automation', () => {
           // Share needs manual review (price != 100 or min units != 10)
           finalStatus = 'needs_review';
           failureReason = `IPO needs manual review: ${verification.reason}`;
+          // Store verification values for notification
+          if (ipoDetails) {
+            ipoDetails.shareValuePerUnit = verification.shareValuePerUnit;
+            ipoDetails.minUnit = verification.minUnit;
+          }
           console.log(failureReason);
         } else {
           await goBackToMyASBA(page);
@@ -210,6 +219,7 @@ test.describe('MeroShare IPO Automation', () => {
             failureReason = 'Auto-apply not configured. Please apply manually.';
           } else {
             // Attempt to fill and submit IPO application with retry
+            let submitResult = null;
             await retryWithBackoff(
               async () => {
                 await clickApplyButton(page, applyInfoRefresh);
@@ -223,9 +233,9 @@ test.describe('MeroShare IPO Automation', () => {
                 });
                 await page.waitForTimeout(2000);
 
-                const submitted = await submitIPOApplication(page);
-                if (!submitted) {
-                  throw new Error('Failed to submit IPO application');
+                submitResult = await submitIPOApplication(page);
+                if (!submitResult.clickedApply) {
+                  throw new Error(submitResult.error || 'Failed to submit IPO application');
                 }
                 await page.waitForTimeout(3000);
               },
@@ -245,7 +255,9 @@ test.describe('MeroShare IPO Automation', () => {
               }
             );
 
-            // Check final status
+            // Check final status - wait a bit longer for response
+            await page.waitForTimeout(3000);
+            
             if (!page.isClosed()) {
               const status = await checkApplicationStatus(page);
               if (status.success) {
@@ -253,11 +265,12 @@ test.describe('MeroShare IPO Automation', () => {
                 console.log('IPO application submitted successfully!');
               } else {
                 finalStatus = 'failed';
-                failureReason = status.message || 'Application submission failed';
+                failureReason = status.message || 'Application submission failed - please verify manually';
               }
             } else {
-              // Page closed during submission - assume success
-              finalStatus = 'success';
+              // Page closed during submission - DO NOT assume success, mark as unknown
+              finalStatus = 'unknown';
+              failureReason = 'Page closed unexpectedly. Please verify application status manually.';
             }
           }
         }
@@ -284,7 +297,7 @@ test.describe('MeroShare IPO Automation', () => {
             await notifyIPOStatus(
               telegramChatId, 
               'success', 
-              `✅ ${companyName} IPO application submitted successfully!\n\nYour application has been auto-filled and submitted.`
+              `✅ ${companyName} IPO application submitted successfully!`
             );
             break;
             
@@ -312,6 +325,15 @@ test.describe('MeroShare IPO Automation', () => {
               `⚠️ IPO application status unknown.\n\n` +
               `${failureReason}\n\n` +
               `Please check your MeroShare account to verify if the application was submitted.`
+            );
+            break;
+            
+          case 'already_applied':
+            const appliedCompany = ipoDetails?.companyName || 'IPO';
+            await notifyIPOStatus(
+              telegramChatId,
+              'success',
+              `✅ ${appliedCompany} IPO already applied!\n\nYour application was previously submitted.`
             );
             break;
             
