@@ -10,7 +10,9 @@
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
     "automate": "playwright test tests/meroshare/login.spec.js",
-    "automate:headed": "playwright test tests/meroshare/login.spec.js --headed"
+    "automate:headed": "playwright test tests/meroshare/login.spec.js --headed",
+    "automate:multi": "playwright test tests/meroshare/multi-user.spec.js",
+    "automate:multi:headed": "playwright test tests/meroshare/multi-user.spec.js --headed"
   },
   "keywords": [
     "playwright",

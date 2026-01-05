@@ -39,11 +39,11 @@ module.exports = defineConfig({
     actionTimeout: 60000, // 1 minute
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-    /* Screenshot on failure */
-    screenshot: 'only-on-failure',
-    /* Video on failure */
-    video: 'retain-on-failure',
+    trace: 'off',
+    /* Screenshot disabled for security */
+    screenshot: 'off',
+    /* Video disabled for security */
+    video: 'off',
   },
 
   /* Configure projects for major browsers */
