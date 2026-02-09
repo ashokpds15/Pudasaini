@@ -1,27 +1,21 @@
 name: MeroShare IPO Automation
 
 on:
+  # Run daily at 9:00 AM Nepal Time (UTC+5:45) = 3:15 AM UTC
   schedule:
-    - cron: '15 3 * * *'  # 9:00 AM NPT daily
+    - cron: '15 3 * * *'  # 9:00 AM NPT (Nepal Time)
   
+  # Allow manual triggering for testing
   workflow_dispatch:
     inputs:
-      user_number:
-        description: 'Run for specific user (1-9) or all'
+      mode:
+        description: 'Run mode'
         required: false
-        default: 'all'
+        default: 'multi'
         type: choice
         options:
-          - all
-          - 1
-          - 2
-          - 3
-          - 4
-          - 5
-          - 6
-          - 7
-          - 8
-          - 9
+          - single
+          - multi
 
 jobs:
   automate:
@@ -35,53 +29,133 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: |
-          npm ci
-          npx playwright install chromium
+        run: npm ci
       
-      - name: Determine users to run
-        id: users
-        run: |
-          if [[ "${{ github.event.inputs.user_number }}" == "all" ]]; then
-            echo "users=1 2 3 4 5 6 7 8 9" >> $GITHUB_OUTPUT
-          else
-            echo "users=${{ github.event.inputs.user_number }}" >> $GITHUB_OUTPUT
-          fi
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
       
-      - name: Run automation for each user
-        run: |
-          for user in ${{ steps.users.outputs.users }}; do
-            echo "Processing User $user"
-            
-            export MEROSHARE_USERNAME="${{ secrets[format('MEROSHARE_USERNAME_{0}', user)] }}"
-            export MEROSHARE_PASSWORD="${{ secrets[format('MEROSHARE_PASSWORD_{0}', user)] }}"
-            export MEROSHARE_DP_NP="${{ secrets[format('MEROSHARE_DP_NP_{0}', user)] }}"
-            export MEROSHARE_BANK="${{ secrets[format('MEROSHARE_BANK_{0}', user)] }}"
-            export MEROSHARE_P_ACCOUNT_NO="${{ secrets[format('MEROSHARE_P_ACCOUNT_NO_{0}', user)] }}"
-            export MEROSHARE_KITTA_N0="${{ secrets[format('MEROSHARE_KITTA_N0_{0}', user)] }}"
-            export MEROSHARE_CRN_NO="${{ secrets[format('MEROSHARE_CRN_NO_{0}', user)] }}"
-            export MEROSHARE_TXN_PIN="${{ secrets[format('MEROSHARE_TXN_PIN_{0}', user)] }}"
-            export TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
-            export TELEGRAM_CHAT_ID="${{ secrets.TELEGRAM_CHAT_ID }}"
-            export USER_NUMBER="$user"
-            
-            # Run the automation script
-            npm run automate || echo "User $user failed, continuing..."
-            
-            # Add delay between users to avoid rate limiting
-            if [ "$user" != "${{ steps.users.outputs.users##* }}" ]; then
-              sleep 10
-            fi
-          done
-      
-      - name: Send completion notification
-        if: always()
+      - name: Run MeroShare automation (Multi-User)
+        if: ${{ github.event.inputs.mode != 'single' }}
         env:
+          # User 1 (Primary)
+          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME }}
+          MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD }}
+          MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP }}
+          MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK }}
+          MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO }}
+          MEROSHARE_KITTA_N0: ${{ secrets.MEROSHARE_KITTA_N0 }}
+          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}
+          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
+          USER1_NAME: ${{ secrets.USER1_NAME }}
+          # User 2
+          USER2_NAME: ${{ secrets.USER2_NAME }}
+          USER2_USERNAME: ${{ secrets.USER2_USERNAME }}
+          USER2_PASSWORD: ${{ secrets.USER2_PASSWORD }}
+          USER2_DP: ${{ secrets.USER2_DP }}
+          USER2_BANK: ${{ secrets.USER2_BANK }}
+          USER2_ACCOUNT_NO: ${{ secrets.USER2_ACCOUNT_NO }}
+          USER2_KITTA: ${{ secrets.USER2_KITTA }}
+          USER2_CRN: ${{ secrets.USER2_CRN }}
+          USER2_TXN_PIN: ${{ secrets.USER2_TXN_PIN }}
+          # User 3
+          USER3_NAME: ${{ secrets.USER3_NAME }}
+          USER3_USERNAME: ${{ secrets.USER3_USERNAME }}
+          USER3_PASSWORD: ${{ secrets.USER3_PASSWORD }}
+          USER3_DP: ${{ secrets.USER3_DP }}
+          USER3_BANK: ${{ secrets.USER3_BANK }}
+          USER3_ACCOUNT_NO: ${{ secrets.USER3_ACCOUNT_NO }}
+          USER3_KITTA: ${{ secrets.USER3_KITTA }}
+          USER3_CRN: ${{ secrets.USER3_CRN }}
+          USER3_TXN_PIN: ${{ secrets.USER3_TXN_PIN }}
+          # User 4
+          USER4_NAME: ${{ secrets.USER4_NAME }}
+          USER4_USERNAME: ${{ secrets.USER4_USERNAME }}
+          USER4_PASSWORD: ${{ secrets.USER4_PASSWORD }}
+          USER4_DP: ${{ secrets.USER4_DP }}
+          USER4_BANK: ${{ secrets.USER4_BANK }}
+          USER4_ACCOUNT_NO: ${{ secrets.USER4_ACCOUNT_NO }}
+          USER4_KITTA: ${{ secrets.USER4_KITTA }}
+          USER4_CRN: ${{ secrets.USER4_CRN }}
+          USER4_TXN_PIN: ${{ secrets.USER4_TXN_PIN }}
+          # User 5
+          USER5_NAME: ${{ secrets.USER5_NAME }}
+          USER5_USERNAME: ${{ secrets.USER5_USERNAME }}
+          USER5_PASSWORD: ${{ secrets.USER5_PASSWORD }}
+          USER5_DP: ${{ secrets.USER5_DP }}
+          USER5_BANK: ${{ secrets.USER5_BANK }}
+          USER5_ACCOUNT_NO: ${{ secrets.USER5_ACCOUNT_NO }}
+          USER5_KITTA: ${{ secrets.USER5_KITTA }}
+          USER5_CRN: ${{ secrets.USER5_CRN }}
+          USER5_TXN_PIN: ${{ secrets.USER5_TXN_PIN }}
+          # User 6
+          USER6_NAME: ${{ secrets.USER6_NAME }}
+          USER6_USERNAME: ${{ secrets.USER6_USERNAME }}
+          USER6_PASSWORD: ${{ secrets.USER6_PASSWORD }}
+          USER6_DP: ${{ secrets.USER6_DP }}
+          USER6_BANK: ${{ secrets.USER6_BANK }}
+          USER6_ACCOUNT_NO: ${{ secrets.USER6_ACCOUNT_NO }}
+          USER6_KITTA: ${{ secrets.USER6_KITTA }}
+          USER6_CRN: ${{ secrets.USER6_CRN }}
+          USER6_TXN_PIN: ${{ secrets.USER6_TXN_PIN }}
+          # User 7
+          USER7_NAME: ${{ secrets.USER7_NAME }}
+          USER7_USERNAME: ${{ secrets.USER7_USERNAME }}
+          USER7_PASSWORD: ${{ secrets.USER7_PASSWORD }}
+          USER7_DP: ${{ secrets.USER7_DP }}
+          USER7_BANK: ${{ secrets.USER7_BANK }}
+          USER7_ACCOUNT_NO: ${{ secrets.USER7_ACCOUNT_NO }}
+          USER7_KITTA: ${{ secrets.USER7_KITTA }}
+          USER7_CRN: ${{ secrets.USER7_CRN }}
+          USER7_TXN_PIN: ${{ secrets.USER7_TXN_PIN }}
+          # User 8
+          USER8_NAME: ${{ secrets.USER8_NAME }}
+          USER8_USERNAME: ${{ secrets.USER8_USERNAME }}
+          USER8_PASSWORD: ${{ secrets.USER8_PASSWORD }}
+          USER8_DP: ${{ secrets.USER8_DP }}
+          USER8_BANK: ${{ secrets.USER8_BANK }}
+          USER8_ACCOUNT_NO: ${{ secrets.USER8_ACCOUNT_NO }}
+          USER8_KITTA: ${{ secrets.USER8_KITTA }}
+          USER8_CRN: ${{ secrets.USER8_CRN }}
+          USER8_TXN_PIN: ${{ secrets.USER8_TXN_PIN }}
+          # User 9
+          USER9_NAME: ${{ secrets.USER9_NAME }}
+          USER9_USERNAME: ${{ secrets.USER9_USERNAME }}
+          USER9_PASSWORD: ${{ secrets.USER9_PASSWORD }}
+          USER9_DP: ${{ secrets.USER9_DP }}
+          USER9_BANK: ${{ secrets.USER9_BANK }}
+          USER9_ACCOUNT_NO: ${{ secrets.USER9_ACCOUNT_NO }}
+          USER9_KITTA: ${{ secrets.USER9_KITTA }}
+          USER9_CRN: ${{ secrets.USER9_CRN }}
+          USER9_TXN_PIN: ${{ secrets.USER9_TXN_PIN }}
+          # User 10
+          USER10_NAME: ${{ secrets.USER10_NAME }}
+          USER10_USERNAME: ${{ secrets.USER10_USERNAME }}
+          USER10_PASSWORD: ${{ secrets.USER10_PASSWORD }}
+          USER10_DP: ${{ secrets.USER10_DP }}
+          USER10_BANK: ${{ secrets.USER10_BANK }}
+          USER10_ACCOUNT_NO: ${{ secrets.USER10_ACCOUNT_NO }}
+          USER10_KITTA: ${{ secrets.USER10_KITTA }}
+          USER10_CRN: ${{ secrets.USER10_CRN }}
+          USER10_TXN_PIN: ${{ secrets.USER10_TXN_PIN }}
+          # Telegram
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-            -d chat_id="$TELEGRAM_CHAT_ID" \
-            -d text="MeroShare automation completed for users: ${{ steps.users.outputs.users }}"
+        run: npm run automate:multi
+
+      - name: Run MeroShare automation (Single User)
+        if: ${{ github.event.inputs.mode == 'single' }}
+        env:
+          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME }}
+          MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD }}
+          MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP }}
+          MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK }}
+          MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO }}
+          MEROSHARE_KITTA_N0: ${{ secrets.MEROSHARE_KITTA_N0 }}
+          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}
+          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: npm run automate
