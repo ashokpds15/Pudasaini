@@ -46,9 +46,8 @@ jobs:
           MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP }}
           MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK }}
           MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO }}
-          MEROSHARE_KITTA_N0: ${{ secrets.MEROSHARE_KITTA_N0 }}
-          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}
-          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
+          MEROSHARE_KITTA_NO: ${{ secrets.MEROSHARE_KITTA_NO }}  # FIXED: was KITTA_N0 (zero)
+          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
           USER1_NAME: ${{ secrets.USER1_NAME }}
           # User 2
           USER2_NAME: ${{ secrets.USER2_NAME }}
@@ -97,8 +96,7 @@ jobs:
           USER6_DP: ${{ secrets.USER6_DP }}
           USER6_BANK: ${{ secrets.USER6_BANK }}
           USER6_ACCOUNT_NO: ${{ secrets.USER6_ACCOUNT_NO }}
-          USER6_KITTA: ${{ secrets.USER6_KITTA }}
-          USER6_CRN: ${{ secrets.USER6_CRN }}
+          USER6_KITTA: ${{ secrets.USER6_KITTA }}          USER6_CRN: ${{ secrets.USER6_CRN }}
           USER6_TXN_PIN: ${{ secrets.USER6_TXN_PIN }}
           # User 7
           USER7_NAME: ${{ secrets.USER7_NAME }}
@@ -147,13 +145,12 @@ jobs:
 
       - name: Run MeroShare automation (Single User)
         if: ${{ github.event.inputs.mode == 'single' }}
-        env:
-          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME }}
+        env:          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME }}
           MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD }}
           MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP }}
           MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK }}
           MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO }}
-          MEROSHARE_KITTA_N0: ${{ secrets.MEROSHARE_KITTA_N0 }}
+          MEROSHARE_KITTA_NO: ${{ secrets.MEROSHARE_KITTA_NO }}  # FIXED: was KITTA_N0 (zero)
           MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}
           MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
