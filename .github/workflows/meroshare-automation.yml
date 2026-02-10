@@ -3,8 +3,7 @@ name: MeroShare IPO Automation
 on:
   # Run daily at 9:00 AM Nepal Time (UTC+5:45) = 3:15 AM UTC
   schedule:
-    - cron: '15 3 * * *'  # 9:00 AM NPT (Nepal Time)
-  
+    - cron: '15 3 * * *'
   # Allow manual triggering for testing
   workflow_dispatch:
     inputs:
@@ -20,126 +19,137 @@ on:
 jobs:
   automate:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '18'   # You can switch to '20' if your runtime supports it
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-      
+
       - name: Run MeroShare automation (Multi-User)
         if: ${{ github.event.inputs.mode != 'single' }}
         env:
-          # USER 1
-MEROSHARE_USERNAME_1: ${{ secrets.MEROSHARE_USERNAME_1 }}
-MEROSHARE_PASSWORD_1: ${{ secrets.MEROSHARE_PASSWORD_1 }}
-MEROSHARE_DP_NP_1: ${{ secrets.MEROSHARE_DP_NP_1 }}
-MEROSHARE_BANK_1: ${{ secrets.MEROSHARE_BANK_1 }}
-MEROSHARE_P_ACCOUNT_NO_1: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_1 }}
-MEROSHARE_KITTA_N0_1: ${{ secrets.MEROSHARE_KITTA_N0_1 }}
-MEROSHARE_CRN_NO_1: ${{ secrets.MEROSHARE_CRN_NO_1 }}
-MEROSHARE_TXN_PIN_1: ${{ secrets.MEROSHARE_TXN_PIN_1 }}
+          # User 1 (Primary) - map *_1 secrets to unsuffixed MEROSHARE_* env vars
+          USER1_NAME: ${{ secrets.USER1_NAME }}
+          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME_1 }}
+          MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_1 }}
+          MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP_1 }}
+          MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK_1 }}
+          MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_1 }}
+          MEROSHARE_KITTA_NO: ${{ secrets.MEROSHARE_KITTA_NO_1 }}   # FIXED
+          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO_1 }}
+          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_1 }}
 
-# USER 2
-MEROSHARE_USERNAME_2: ${{ secrets.MEROSHARE_USERNAME_2 }}
-MEROSHARE_PASSWORD_2: ${{ secrets.MEROSHARE_PASSWORD_2 }}
-MEROSHARE_DP_NP_2: ${{ secrets.MEROSHARE_DP_NP_2 }}
-MEROSHARE_BANK_2: ${{ secrets.MEROSHARE_BANK_2 }}
-MEROSHARE_P_ACCOUNT_NO_2: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_2 }}
-MEROSHARE_KITTA_N0_2: ${{ secrets.MEROSHARE_KITTA_N0_2 }}
-MEROSHARE_CRN_NO_2: ${{ secrets.MEROSHARE_CRN_NO_2 }}
-MEROSHARE_TXN_PIN_2: ${{ secrets.MEROSHARE_TXN_PIN_2 }}
+          # User 2 - map MEROSHARE_*_2 to USER2_* env vars
+          USER2_NAME: ${{ secrets.USER2_NAME }}
+          USER2_USERNAME: ${{ secrets.MEROSHARE_USERNAME_2 }}
+          USER2_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_2 }}
+          USER2_DP: ${{ secrets.MEROSHARE_DP_NP_2 }}
+          USER2_BANK: ${{ secrets.MEROSHARE_BANK_2 }}
+          USER2_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_2 }}
+          USER2_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_2 }}          # FIXED
+          USER2_CRN: ${{ secrets.MEROSHARE_CRN_NO_2 }}
+          USER2_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_2 }}
 
-# USER 3
-MEROSHARE_USERNAME_3: ${{ secrets.MEROSHARE_USERNAME_3 }}
-MEROSHARE_PASSWORD_3: ${{ secrets.MEROSHARE_PASSWORD_3 }}
-MEROSHARE_DP_NP_3: ${{ secrets.MEROSHARE_DP_NP_3 }}
-MEROSHARE_BANK_3: ${{ secrets.MEROSHARE_BANK_3 }}
-MEROSHARE_P_ACCOUNT_NO_3: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_3 }}
-MEROSHARE_KITTA_N0_3: ${{ secrets.MEROSHARE_KITTA_N0_3 }}
-MEROSHARE_CRN_NO_3: ${{ secrets.MEROSHARE_CRN_NO_3 }}
-MEROSHARE_TXN_PIN_3: ${{ secrets.MEROSHARE_TXN_PIN_3 }}
+          # User 3
+          USER3_NAME: ${{ secrets.USER3_NAME }}
+          USER3_USERNAME: ${{ secrets.MEROSHARE_USERNAME_3 }}
+          USER3_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_3 }}
+          USER3_DP: ${{ secrets.MEROSHARE_DP_NP_3 }}
+          USER3_BANK: ${{ secrets.MEROSHARE_BANK_3 }}
+          USER3_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_3 }}
+          USER3_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_3 }}          # FIXED
+          USER3_CRN: ${{ secrets.MEROSHARE_CRN_NO_3 }}
+          USER3_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_3 }}
 
-# USER 4
-MEROSHARE_USERNAME_4: ${{ secrets.MEROSHARE_USERNAME_4 }}
-MEROSHARE_PASSWORD_4: ${{ secrets.MEROSHARE_PASSWORD_4 }}
-MEROSHARE_DP_NP_4: ${{ secrets.MEROSHARE_DP_NP_4 }}
-MEROSHARE_BANK_4: ${{ secrets.MEROSHARE_BANK_4 }}
-MEROSHARE_P_ACCOUNT_NO_4: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_4 }}
-MEROSHARE_KITTA_N0_4: ${{ secrets.MEROSHARE_KITTA_N0_4 }}
-MEROSHARE_CRN_NO_4: ${{ secrets.MEROSHARE_CRN_NO_4 }}
-MEROSHARE_TXN_PIN_4: ${{ secrets.MEROSHARE_TXN_PIN_4 }}
+          # User 4
+          USER4_NAME: ${{ secrets.USER4_NAME }}
+          USER4_USERNAME: ${{ secrets.MEROSHARE_USERNAME_4 }}
+          USER4_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_4 }}
+          USER4_DP: ${{ secrets.MEROSHARE_DP_NP_4 }}
+          USER4_BANK: ${{ secrets.MEROSHARE_BANK_4 }}
+          USER4_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_4 }}
+          USER4_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_4 }}          # FIXED
+          USER4_CRN: ${{ secrets.MEROSHARE_CRN_NO_4 }}
+          USER4_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_4 }}
 
-# USER 5
-MEROSHARE_USERNAME_5: ${{ secrets.MEROSHARE_USERNAME_5 }}
-MEROSHARE_PASSWORD_5: ${{ secrets.MEROSHARE_PASSWORD_5 }}
-MEROSHARE_DP_NP_5: ${{ secrets.MEROSHARE_DP_NP_5 }}
-MEROSHARE_BANK_5: ${{ secrets.MEROSHARE_BANK_5 }}
-MEROSHARE_P_ACCOUNT_NO_5: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_5 }}
-MEROSHARE_KITTA_N0_5: ${{ secrets.MEROSHARE_KITTA_N0_5 }}
-MEROSHARE_CRN_NO_5: ${{ secrets.MEROSHARE_CRN_NO_5 }}
-MEROSHARE_TXN_PIN_5: ${{ secrets.MEROSHARE_TXN_PIN_5 }}
+          # User 5
+          USER5_NAME: ${{ secrets.USER5_NAME }}
+          USER5_USERNAME: ${{ secrets.MEROSHARE_USERNAME_5 }}
+          USER5_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_5 }}
+          USER5_DP: ${{ secrets.MEROSHARE_DP_NP_5 }}
+          USER5_BANK: ${{ secrets.MEROSHARE_BANK_5 }}
+          USER5_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_5 }}
+          USER5_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_5 }}          # FIXED
+          USER5_CRN: ${{ secrets.MEROSHARE_CRN_NO_5 }}
+          USER5_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_5 }}
 
-# USER 6
-MEROSHARE_USERNAME_6: ${{ secrets.MEROSHARE_USERNAME_6 }}
-MEROSHARE_PASSWORD_6: ${{ secrets.MEROSHARE_PASSWORD_6 }}
-MEROSHARE_DP_NP_6: ${{ secrets.MEROSHARE_DP_NP_6 }}
-MEROSHARE_BANK_6: ${{ secrets.MEROSHARE_BANK_6 }}
-MEROSHARE_P_ACCOUNT_NO_6: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_6 }}
-MEROSHARE_KITTA_N0_6: ${{ secrets.MEROSHARE_KITTA_N0_6 }}
-MEROSHARE_CRN_NO_6: ${{ secrets.MEROSHARE_CRN_NO_6 }}
-MEROSHARE_TXN_PIN_6: ${{ secrets.MEROSHARE_TXN_PIN_6 }}
+          # User 6
+          USER6_NAME: ${{ secrets.USER6_NAME }}
+          USER6_USERNAME: ${{ secrets.MEROSHARE_USERNAME_6 }}
+          USER6_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_6 }}
+          USER6_DP: ${{ secrets.MEROSHARE_DP_NP_6 }}
+          USER6_BANK: ${{ secrets.MEROSHARE_BANK_6 }}
+          USER6_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_6 }}
+          USER6_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_6 }}          # FIXED
+          USER6_CRN: ${{ secrets.MEROSHARE_CRN_NO_6 }}
+          USER6_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_6 }}
 
-# USER 7
-MEROSHARE_USERNAME_7: ${{ secrets.MEROSHARE_USERNAME_7 }}
-MEROSHARE_PASSWORD_7: ${{ secrets.MEROSHARE_PASSWORD_7 }}
-MEROSHARE_DP_NP_7: ${{ secrets.MEROSHARE_DP_NP_7 }}
-MEROSHARE_BANK_7: ${{ secrets.MEROSHARE_BANK_7 }}
-MEROSHARE_P_ACCOUNT_NO_7: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_7 }}
-MEROSHARE_KITTA_N0_7: ${{ secrets.MEROSHARE_KITTA_N0_7 }}
-MEROSHARE_CRN_NO_7: ${{ secrets.MEROSHARE_CRN_NO_7 }}
-MEROSHARE_TXN_PIN_7: ${{ secrets.MEROSHARE_TXN_PIN_7 }}
+          # User 7
+          USER7_NAME: ${{ secrets.USER7_NAME }}
+          USER7_USERNAME: ${{ secrets.MEROSHARE_USERNAME_7 }}
+          USER7_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_7 }}
+          USER7_DP: ${{ secrets.MEROSHARE_DP_NP_7 }}
+          USER7_BANK: ${{ secrets.MEROSHARE_BANK_7 }}
+          USER7_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_7 }}
+          USER7_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_7 }}          # FIXED
+          USER7_CRN: ${{ secrets.MEROSHARE_CRN_NO_7 }}
+          USER7_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_7 }}
 
-# USER 8
-MEROSHARE_USERNAME_8: ${{ secrets.MEROSHARE_USERNAME_8 }}
-MEROSHARE_PASSWORD_8: ${{ secrets.MEROSHARE_PASSWORD_8 }}
-MEROSHARE_DP_NP_8: ${{ secrets.MEROSHARE_DP_NP_8 }}
-MEROSHARE_BANK_8: ${{ secrets.MEROSHARE_BANK_8 }}
-MEROSHARE_P_ACCOUNT_NO_8: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_8 }}
-MEROSHARE_KITTA_N0_8: ${{ secrets.MEROSHARE_KITTA_N0_8 }}
-MEROSHARE_CRN_NO_8: ${{ secrets.MEROSHARE_CRN_NO_8 }}
-MEROSHARE_TXN_PIN_8: ${{ secrets.MEROSHARE_TXN_PIN_8 }}
+          # User 8
+          USER8_NAME: ${{ secrets.USER8_NAME }}
+          USER8_USERNAME: ${{ secrets.MEROSHARE_USERNAME_8 }}
+          USER8_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_8 }}
+          USER8_DP: ${{ secrets.MEROSHARE_DP_NP_8 }}
+          USER8_BANK: ${{ secrets.MEROSHARE_BANK_8 }}
+          USER8_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_8 }}
+          USER8_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_8 }}          # FIXED
+          USER8_CRN: ${{ secrets.MEROSHARE_CRN_NO_8 }}
+          USER8_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_8 }}
 
-# USER 9
-MEROSHARE_USERNAME_9: ${{ secrets.MEROSHARE_USERNAME_9 }}
-MEROSHARE_PASSWORD_9: ${{ secrets.MEROSHARE_PASSWORD_9 }}
-MEROSHARE_DP_NP_9: ${{ secrets.MEROSHARE_DP_NP_9 }}
-MEROSHARE_BANK_9: ${{ secrets.MEROSHARE_BANK_9 }}
-MEROSHARE_P_ACCOUNT_NO_9: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_9 }}
-MEROSHARE_KITTA_N0_9: ${{ secrets.MEROSHARE_KITTA_N0_9 }}
-MEROSHARE_CRN_NO_9: ${{ secrets.MEROSHARE_CRN_NO_9 }}
-MEROSHARE_TXN_PIN_9: ${{ secrets.MEROSHARE_TXN_PIN_9 }}
+          # User 9
+          USER9_NAME: ${{ secrets.USER9_NAME }}
+          USER9_USERNAME: ${{ secrets.MEROSHARE_USERNAME_9 }}
+          USER9_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_9 }}
+          USER9_DP: ${{ secrets.MEROSHARE_DP_NP_9 }}
+          USER9_BANK: ${{ secrets.MEROSHARE_BANK_9 }}
+          USER9_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_9 }}
+          USER9_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_9 }}          # FIXED
+          USER9_CRN: ${{ secrets.MEROSHARE_CRN_NO_9 }}
+          USER9_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_9 }}
 
-# USER 10
-MEROSHARE_USERNAME_10: ${{ secrets.MEROSHARE_USERNAME_10 }}
-MEROSHARE_PASSWORD_10: ${{ secrets.MEROSHARE_PASSWORD_10 }}
-MEROSHARE_DP_NP_10: ${{ secrets.MEROSHARE_DP_NP_10 }}
-MEROSHARE_BANK_10: ${{ secrets.MEROSHARE_BANK_10 }}
-MEROSHARE_P_ACCOUNT_NO_10: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_10 }}
-MEROSHARE_KITTA_N0_10: ${{ secrets.MEROSHARE_KITTA_N0_10 }}
-MEROSHARE_CRN_NO_10: ${{ secrets.MEROSHARE_CRN_NO_10 }}
-MEROSHARE_TXN_PIN_10: ${{ secrets.MEROSHARE_TXN_PIN_10 }}
-#teligram 
+          # User 10 (optional; add if you have secrets for it)
+          USER10_NAME: ${{ secrets.USER10_NAME }}
+          USER10_USERNAME: ${{ secrets.MEROSHARE_USERNAME_10 }}
+          USER10_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_10 }}
+          USER10_DP: ${{ secrets.MEROSHARE_DP_NP_10 }}
+          USER10_BANK: ${{ secrets.MEROSHARE_BANK_10 }}
+          USER10_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_10 }}
+          USER10_KITTA: ${{ secrets.MEROSHARE_KITTA_NO_10 }}        # FIXED
+          USER10_CRN: ${{ secrets.MEROSHARE_CRN_NO_10 }}
+          USER10_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_10 }}
+
+          # Telegram
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: npm run automate:multi
@@ -147,15 +157,15 @@ MEROSHARE_TXN_PIN_10: ${{ secrets.MEROSHARE_TXN_PIN_10 }}
       - name: Run MeroShare automation (Single User)
         if: ${{ github.event.inputs.mode == 'single' }}
         env:
-          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME }}
-          MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD }}
-          MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP }}
-          MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK }}
-          MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO }}
-          MEROSHARE_KITTA_N0: ${{ secrets.MEROSHARE_KITTA_N0 }}
-          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}
-          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
+          # Map *_1 secrets to the unsuffixed MEROSHARE_* env vars for single-user run
+          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME_1 }}
+          MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD_1 }}
+          MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP_1 }}
+          MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK_1 }}
+          MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO_1 }}
+          MEROSHARE_KITTA_NO: ${{ secrets.MEROSHARE_KITTA_NO_1 }}   # FIXED
+          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO_1 }}
+          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN_1 }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: npm run automate
-
