@@ -24,7 +24,7 @@ const {
 } = require('./helpers');
 
 test.describe('MeroShare IPO Automation', () => {
-  test.setTimeout(300000); // Set test timeout to 5 minutes (increased for high traffic)
+  test.setTimeout(600000); // Set test timeout to 5 minutes (increased for high traffic)
   
   test.beforeEach(async ({ page }) => {
     // Use retry-enabled navigation for high traffic scenarios
@@ -44,7 +44,7 @@ test.describe('MeroShare IPO Automation', () => {
         'select2#selectBranch',
         'input[type="text"]',
       ], {
-        timeout: 60000,
+        timeout: 120000,
         maxRetries: 3,
         reloadOnFail: true,
       });
