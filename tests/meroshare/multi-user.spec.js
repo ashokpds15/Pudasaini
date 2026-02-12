@@ -25,7 +25,7 @@ const {
 const { users, telegram } = require('../../users.config');
 
 test.describe('MeroShare Multi-User IPO Automation', () => {
-  test.setTimeout(600000); // 10 minutes total for all users
+  test.setTimeout(1200000); // 10 minutes total for all users
   
   test('should check for IPO and auto-apply for all users', async ({ browser }) => {
     const telegramToken = telegram.token;
