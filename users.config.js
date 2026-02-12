@@ -126,6 +126,19 @@ const users = [
     crn: process.env.USER10_CRN,
     txnPin: process.env.USER10_TXN_PIN,
   },
+
+    // User 11
+  {
+    name: process.env.USER11_NAME || 'User 11',
+    username: process.env.USER11_USERNAME,
+    password: process.env.USER11_PASSWORD,
+    dp: process.env.USER11_DP,
+    bank: process.env.USER11_BANK,
+    accountNumber: process.env.USER11_ACCOUNT_NO,
+    kitta: process.env.USER11_KITTA,
+    crn: process.env.USER11_CRN,
+    txnPin: process.env.USER11_TXN_PIN,
+  },
 ];
 
 // Filter out users with missing required credentials
