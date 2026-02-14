@@ -25,7 +25,7 @@ const {
 const { users, telegram } = require('../../users.config');
 
 test.describe('MeroShare Multi-User IPO Automation', () => {
-  test.setTimeout(1200000); // 10 minutes total for all users
+  test.setTimeout(2400000); // 10 minutes total for all users
   
   test('should check for IPO and auto-apply for all users', async ({ browser }) => {
     const telegramToken = telegram.token;
@@ -93,7 +93,7 @@ test.describe('MeroShare Multi-User IPO Automation', () => {
             'select2#selectBranch',
             'input[type="text"]',
           ], {
-            timeout: 60000,
+            timeout: 120000,
             maxRetries: 3,
             reloadOnFail: true,
           });
@@ -117,7 +117,7 @@ test.describe('MeroShare Multi-User IPO Automation', () => {
             onRetry: async (error, attempt) => {
               console.log(`${userLabel}: Login attempt ${attempt} failed: ${error.message}. Retrying...`);
               try {
-                await page.reload({ timeout: 60000, waitUntil: 'domcontentloaded' });
+                await page.reload({ timeout: 120000, waitUntil: 'domcontentloaded' });
                 await page.waitForTimeout(2000);
               } catch (e) {
                 console.log('Page reload failed, continuing...');
