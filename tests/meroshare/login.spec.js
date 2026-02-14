@@ -24,15 +24,15 @@ const {
 } = require('./helpers');
 
 test.describe('MeroShare IPO Automation', () => {
-  test.setTimeout(600000); // Set test timeout to 5 minutes (increased for high traffic)
+  test.setTimeout(1200000); // Set test timeout to 5 minutes (increased for high traffic)
   
   test.beforeEach(async ({ page }) => {
     // Use retry-enabled navigation for high traffic scenarios
     const loginUrl = 'https://meroshare.cdsc.com.np/#/login';
     
     await navigateWithRetry(page, loginUrl, {
-      maxRetries: 5,
-      timeout: 120000, // 2 minutes per attempt
+      maxRetries: 10,
+      timeout: 240000, // 2 minutes per attempt
       waitUntil: 'domcontentloaded',
     });
     
@@ -44,8 +44,8 @@ test.describe('MeroShare IPO Automation', () => {
         'select2#selectBranch',
         'input[type="text"]',
       ], {
-        timeout: 120000,
-        maxRetries: 3,
+        timeout: 240000,
+        maxRetries: 5,
         reloadOnFail: true,
       });
     } catch (e) {
@@ -91,7 +91,7 @@ test.describe('MeroShare IPO Automation', () => {
           'form',
           'input#username',
           'select2#selectBranch',
-        ], { timeout: 30000, maxRetries: 2 });
+        ], { timeout: 60000, maxRetries: 5 });
       } catch (e) {
         console.log('Login form elements not found, attempting to continue...');
       }
