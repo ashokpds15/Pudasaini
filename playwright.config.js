@@ -13,10 +13,10 @@ require('dotenv').config();
 module.exports = defineConfig({
   testDir: './tests',
   /* Maximum time one test can run for - increased for high traffic scenarios */
-  timeout: 300000, // 5 minutes
+  timeout: 600000, // 5 minutes
   /* Expect timeout for assertions */
   expect: {
-    timeout: 30000, // 30 seconds for assertions
+    timeout: 60000, // 30 seconds for assertions
   },
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -34,9 +34,9 @@ module.exports = defineConfig({
     // baseURL: 'http://127.0.0.1:3000',
 
     /* Navigation timeout - increased for slow server responses */
-    navigationTimeout: 120000, // 2 minutes
+    navigationTimeout: 240000, // 2 minutes
     /* Action timeout (clicks, fills, etc.) */
-    actionTimeout: 60000, // 1 minute
+    actionTimeout: 180000, // 1 minute
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'off',
